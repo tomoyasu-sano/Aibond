@@ -1,0 +1,115 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: aibond-web
+  labels:
+    cloud.googleapis.com/location: asia-northeast1
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        # CPU allocation
+        run.googleapis.com/cpu-throttling: 'false'
+        # Scaling
+        autoscaling.knative.dev/minScale: '1'
+        autoscaling.knative.dev/maxScale: '10'
+        # Startup probe
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      # Service account for Google Cloud APIs
+      serviceAccountName: aibond-cloud-run-sa@aibond-479715.iam.gserviceaccount.com
+
+      containerConcurrency: 80
+      timeoutSeconds: 300
+
+      containers:
+      - name: aibond-web
+        image: asia-northeast1-docker.pkg.dev/aibond-479715/aibond/web:latest
+
+        ports:
+        - name: http1
+          containerPort: 8080
+
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+
+        env:
+        # Public environment variables (non-sensitive)
+        - name: NODE_ENV
+          value: production
+        - name: NEXT_TELEMETRY_DISABLED
+          value: '1'
+
+        # Supabase (from Secret Manager)
+        - name: NEXT_PUBLIC_SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: supabase-url
+              key: latest
+        - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              name: supabase-anon-key
+              key: latest
+        - name: SUPABASE_SERVICE_ROLE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: supabase-service-role-key
+              key: latest
+
+        # Google Cloud APIs (from Secret Manager)
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gemini-api-key
+              key: latest
+
+        # Stripe (from Secret Manager)
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stripe-secret-key
+              key: latest
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: stripe-webhook-secret
+              key: latest
+        - name: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stripe-publishable-key
+              key: latest
+        - name: STRIPE_PRICE_STANDARD
+          valueFrom:
+            secretKeyRef:
+              name: stripe-price-standard
+              key: latest
+        - name: STRIPE_PRICE_PREMIUM
+          valueFrom:
+            secretKeyRef:
+              name: stripe-price-premium
+              key: latest
+
+        startupProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 3
+          failureThreshold: 10
+
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          periodSeconds: 10
+          failureThreshold: 3
+
+  traffic:
+  - percent: 100
+    latestRevision: true
