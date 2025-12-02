@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     // リクエストボディ取得
     const body: CreateManualItemRequest = await request.json();
-    const { target_user_id, category, question, answer = '', color } = body;
+    const { target_user_id, category, question, answer = '', date } = body;
 
     // バリデーション
     if (!target_user_id || !category || !question) {
@@ -52,9 +52,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // デフォルト色を取得
-    const defaultColor = color || MANUAL_CATEGORIES[category].defaultColor;
-
     // 項目を作成
     const { data: newItem, error } = await supabase
       .from('manual_items')
@@ -65,7 +62,7 @@ export async function POST(request: NextRequest) {
         category,
         question,
         answer,
-        color: defaultColor,
+        date: date || null,
         is_fixed: false,
       })
       .select()

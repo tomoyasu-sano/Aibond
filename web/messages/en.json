@@ -85,7 +85,7 @@
     "manualDescription": "Build your partner's user manual together",
     "yourManual": "You",
     "partner": "Partner",
-    "items": " items",
+    "items": " pages",
     "openManual": "Open"
   },
   "landingPage": {
@@ -702,8 +702,8 @@
     "pageDescription": "Build your partner's user manual together",
     "myManual": "My Manual",
     "partnerManual": "{name}'s Manual",
-    "items": " items",
-    "addItem": "Add Book",
+    "items": " pages",
+    "addItem": "Add Page",
     "editItem": "Edit",
     "deleteItem": "Delete",
     "category": "Category",

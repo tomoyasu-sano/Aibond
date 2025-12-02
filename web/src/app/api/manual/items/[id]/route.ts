@@ -27,7 +27,7 @@ export async function PUT(
 
     // リクエストボディ取得
     const body: UpdateManualItemRequest = await request.json();
-    const { question, answer, color, category } = body;
+    const { question, answer, date, category } = body;
 
     // バリデーション
     if (category && !Object.keys(MANUAL_CATEGORIES).includes(category)) {
@@ -41,7 +41,7 @@ export async function PUT(
 
     if (question !== undefined) updateData.question = question;
     if (answer !== undefined) updateData.answer = answer;
-    if (color !== undefined) updateData.color = color;
+    if (date !== undefined) updateData.date = date;
     if (category !== undefined) updateData.category = category;
 
     // 項目を更新

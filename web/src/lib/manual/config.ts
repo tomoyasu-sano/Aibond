@@ -54,6 +54,15 @@ export const FIXED_QUESTIONS = [
   { category: 'basic', question: '絶対に許せないこと' },
 ] as const;
 
+// オンボーディング用の質問（初回5問）
+export const ONBOARDING_QUESTIONS = [
+  { category: 'basic', question: '誕生日は？', placeholder: '例: 1月1日' },
+  { category: 'basic', question: '血液型は？', placeholder: '例: A型' },
+  { category: 'hobbies', question: '好きな食べ物は？', placeholder: '例: お寿司、ラーメン' },
+  { category: 'hobbies', question: '苦手な食べ物は？', placeholder: '例: なす、ピーマン' },
+  { category: 'lifestyle', question: '朝型？夜型？', placeholder: '例: 朝型です' },
+] as const;
+
 // 達成レベル設定（修正可能）
 export const ACHIEVEMENT_LEVELS = [
   {

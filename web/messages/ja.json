@@ -397,7 +397,7 @@
     "noHistory": "相談履歴がありません",
     "untitledConsultation": "無題の相談",
     "aiConsultDescription": "AIに相談する",
-    "aiConsultExplanation": "パートナーとの関係について相談できます。過去の会話サマリーを参考に、あなたに合ったアドバイスを提供します。",
+    "aiConsultExplanation": "パートナーとの関係について相談できます。過去の会話サマリーや取説を参考に、あなたに合ったアドバイスを提供します。",
     "messagePlaceholder": "メッセージを入力... (Cmd+Enterで送信)",
     "sendButton": "送信",
     "stopButton": "停止",

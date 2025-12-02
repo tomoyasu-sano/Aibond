@@ -12,7 +12,7 @@ export interface ManualItem {
   category: ManualCategory;
   question: string;
   answer: string;
-  color?: string;
+  date?: string;
   is_fixed?: boolean;
   created_at: string;
   updated_at: string;
@@ -23,12 +23,12 @@ export interface CreateManualItemRequest {
   category: ManualCategory;
   question: string;
   answer?: string;
-  color?: string;
+  date?: string;
 }
 
 export interface UpdateManualItemRequest {
   category?: ManualCategory;
   question?: string;
   answer?: string;
-  color?: string;
+  date?: string;
 }

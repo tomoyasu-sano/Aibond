@@ -47,8 +47,14 @@ export function ManualItemModal({
   const [category, setCategory] = useState<ManualCategory>("basic");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
-  const [color, setColor] = useState("");
+  const [date, setDate] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // 今日の日付を取得（YYYY-MM-DD形式）
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
 
   // 編集モードの場合、フォームを初期化
   useEffect(() => {
@@ -56,12 +62,12 @@ export function ManualItemModal({
       setCategory(editingItem.category);
       setQuestion(editingItem.question);
       setAnswer(editingItem.answer);
-      setColor(editingItem.color || "");
+      setDate(editingItem.date || "");
     } else {
       setCategory("basic");
       setQuestion("");
       setAnswer("");
-      setColor("");
+      setDate(getTodayDate());
     }
   }, [editingItem, isOpen]);
 
@@ -79,7 +85,7 @@ export function ManualItemModal({
             category,
             question,
             answer,
-            color: color || undefined,
+            date: date || undefined,
           }),
         });
 
@@ -100,7 +106,7 @@ export function ManualItemModal({
             category,
             question,
             answer,
-            color: color || undefined,
+            date: date || undefined,
           }),
         });
 
@@ -118,10 +124,6 @@ export function ManualItemModal({
       setSaving(false);
     }
   };
-
-  // デフォルト色を取得
-  const defaultColor = MANUAL_CATEGORIES[category].defaultColor;
-  const selectedColor = color || defaultColor;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -183,18 +185,19 @@ export function ManualItemModal({
             />
           </div>
 
-          {/* 色選択（プレビュー付き） */}
+          {/* 日付 */}
           <div className="space-y-2">
-            <Label htmlFor="color">{t("color")}</Label>
-            <div className="flex gap-2 items-center">
-              <Input
-                id="color"
-                type="color"
-                value={selectedColor}
-                onChange={(e) => setColor(e.target.value)}
-                className="w-20 h-10"
-              />
-            </div>
+            <Label htmlFor="date">日付（任意）</Label>
+            <Input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              誕生日、記念日、期限などを入力できます
+            </p>
           </div>
 
           {/* アクションボタン */}
