@@ -194,9 +194,6 @@ export function ManualItemModal({
                 onChange={(e) => setColor(e.target.value)}
                 className="w-20 h-10"
               />
-              <div className="text-sm text-muted-foreground">
-                {color ? t("customQuestion") : t("fixedQuestion")} ({selectedColor})
-              </div>
             </div>
           </div>
 

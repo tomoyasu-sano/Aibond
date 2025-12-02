@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
@@ -79,6 +80,9 @@ export default function PlansPage() {
 function PlansContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("plans");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   const [currentPlan, setCurrentPlan] = useState<PlanType>("free");
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -86,7 +90,7 @@ function PlansContent() {
   useEffect(() => {
     // キャンセル時のメッセージ
     if (searchParams.get("checkout") === "canceled") {
-      toast.info("決済がキャンセルされました");
+      toast.info(t("checkoutCancelled"));
     }
 
     fetchCurrentPlan();
@@ -114,7 +118,7 @@ function PlansContent() {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planKey }),
+        body: JSON.stringify({ plan: planKey, locale }),
       });
 
       if (!res.ok) {
@@ -127,7 +131,7 @@ function PlansContent() {
       }
     } catch (error) {
       console.error("Error creating checkout:", error);
-      toast.error("決済ページの作成に失敗しました");
+      toast.error(t("checkoutFailed"));
       setProcessing(false);
     }
   };
@@ -149,7 +153,7 @@ function PlansContent() {
       }
     } catch (error) {
       console.error("Error opening portal:", error);
-      toast.error("管理ページを開けませんでした");
+      toast.error(t("portalFailed"));
       setProcessing(false);
     }
   };
@@ -157,7 +161,7 @@ function PlansContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        <Header t={t} tc={tc} />
         <main className="container mx-auto px-4 py-8">
           <div className="animate-pulse space-y-8">
             <div className="h-8 w-48 bg-muted rounded mx-auto" />
@@ -174,13 +178,13 @@ function PlansContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header t={t} tc={tc} />
 
       <main className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">料金プラン</h1>
+          <h1 className="text-3xl font-bold mb-2">{t("pageTitle")}</h1>
           <p className="text-muted-foreground">
-            あなたに合ったプランを選んでください
+            {t("subtitle")}
           </p>
         </div>
 
@@ -244,7 +248,7 @@ function PlansContent() {
                 <CardFooter>
                   {isCurrent ? (
                     <Button variant="outline" className="w-full" disabled>
-                      現在のプラン
+                      {t("currentPlan")}
                     </Button>
                   ) : plan.key === "free" ? (
                     <Button
@@ -253,14 +257,14 @@ function PlansContent() {
                       onClick={handleManageSubscription}
                       disabled={currentPlan === "free"}
                     >
-                      {currentPlan === "free" ? "現在のプラン" : "ダウングレード"}
+                      {currentPlan === "free" ? t("currentPlan") : t("changePlan")}
                     </Button>
                   ) : isUpgrade ? (
                     <Button
                       className="w-full"
                       onClick={() => handleSelectPlan(plan.key as "standard" | "premium")}
                     >
-                      アップグレード
+                      {t("upgrade")}
                     </Button>
                   ) : isDowngrade ? (
                     <Button
@@ -268,14 +272,14 @@ function PlansContent() {
                       className="w-full"
                       onClick={handleManageSubscription}
                     >
-                      プラン変更
+                      {t("changePlan")}
                     </Button>
                   ) : (
                     <Button
                       className="w-full"
                       onClick={() => handleSelectPlan(plan.key as "standard" | "premium")}
                     >
-                      {plan.buttonText}
+                      {t("selectPlan")}
                     </Button>
                   )}
                 </CardFooter>
@@ -287,33 +291,33 @@ function PlansContent() {
         {currentPlan !== "free" && (
           <div className="text-center mt-8">
             <Button variant="link" onClick={handleManageSubscription}>
-              サブスクリプションを管理
+              {t("manageSubscription")}
             </Button>
           </div>
         )}
       </main>
 
-      <LoadingOverlay open={processing} message="処理中..." />
+      <LoadingOverlay open={processing} message={tc("loading")} />
     </div>
   );
 }
 
-function Header() {
+function Header({ t, tc }: { t: any; tc: any }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-primary">Aibond</span>
+          <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
         </Link>
         <nav className="flex items-center gap-4">
           <Link href="/dashboard">
             <Button variant="ghost" size="sm">
-              ダッシュボード
+              {tc("dashboard")}
             </Button>
           </Link>
           <Link href="/settings">
             <Button variant="ghost" size="sm">
-              設定
+              {tc("settings")}
             </Button>
           </Link>
         </nav>

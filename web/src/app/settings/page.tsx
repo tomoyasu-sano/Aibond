@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { toast } from "sonner";
 import { LANGUAGES, PLAN_LIMITS, type LanguageCode, type PlanType } from "@/types/database";
 
@@ -62,7 +64,7 @@ export default function SettingsPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
+        <div className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
           <div className="animate-pulse space-y-4">
             <div className="h-8 w-32 bg-muted rounded" />
             <div className="h-64 bg-muted rounded" />
@@ -78,6 +80,8 @@ export default function SettingsPage() {
 function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processingPortal, setProcessingPortal] = useState(false);
@@ -91,7 +95,7 @@ function SettingsContent() {
   useEffect(() => {
     // Checkout成功時のメッセージ
     if (searchParams.get("checkout") === "success") {
-      toast.success("プランが更新されました！");
+      toast.success(t("checkoutSuccess"));
       // URLパラメータを削除
       router.replace("/settings");
     }
@@ -114,7 +118,7 @@ function SettingsContent() {
       setLanguage(profileData.profile.language || "ja");
     } catch (error) {
       console.error("Error fetching profile:", error);
-      toast.error("プロフィールの取得に失敗しました");
+      toast.error(t("fetchFailed"));
     } finally {
       setLoading(false);
     }
@@ -136,11 +140,11 @@ function SettingsContent() {
         throw new Error("Failed to update profile");
       }
 
-      toast.success("プロフィールを更新しました");
+      toast.success(t("saveSuccess"));
       fetchProfile();
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error("プロフィールの更新に失敗しました");
+      toast.error(t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -170,14 +174,14 @@ function SettingsContent() {
       }
     } catch (error) {
       console.error("Error opening portal:", error);
-      toast.error("管理ページを開けませんでした");
+      toast.error(t("portalFailed"));
       setProcessingPortal(false);
     }
   };
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "削除する") {
-      toast.error("確認テキストが一致しません");
+      toast.error(t("deleteConfirmMismatch"));
       return;
     }
 
@@ -192,7 +196,7 @@ function SettingsContent() {
         throw new Error(errorData.error || "Failed to delete account");
       }
 
-      toast.success("アカウントを削除しました");
+      toast.success(t("deleteSuccess"));
 
       // ログアウトしてトップページへ
       const supabase = createClient();
@@ -201,7 +205,7 @@ function SettingsContent() {
       router.refresh();
     } catch (error) {
       console.error("Error deleting account:", error);
-      toast.error("アカウントの削除に失敗しました");
+      toast.error(t("deleteFailed"));
       setDeletingAccount(false);
     }
   };
@@ -209,8 +213,8 @@ function SettingsContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header email={null} onSignOut={handleSignOut} />
-        <main className="container mx-auto px-4 py-8">
+        <Header t={t} tc={tc} email={null} onSignOut={handleSignOut} />
+        <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
           <div className="animate-pulse space-y-4">
             <div className="h-8 w-32 bg-muted rounded" />
             <div className="h-64 bg-muted rounded" />
@@ -223,9 +227,9 @@ function SettingsContent() {
   if (!data) {
     return (
       <div className="min-h-screen bg-background">
-        <Header email={null} onSignOut={handleSignOut} />
-        <main className="container mx-auto px-4 py-8">
-          <p>データの取得に失敗しました</p>
+        <Header t={t} tc={tc} email={null} onSignOut={handleSignOut} />
+        <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
+          <p>{t("fetchFailed")}</p>
         </main>
       </div>
     );
@@ -238,13 +242,13 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header email={data.email} onSignOut={handleSignOut} />
+      <Header t={t} tc={tc} email={data.email} onSignOut={handleSignOut} />
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">設定</h1>
+      <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold">{t("pageTitle")}</h1>
           <p className="mt-2 text-muted-foreground">
-            アカウント設定を管理します
+            {t("pageDescription")}
           </p>
         </div>
 
@@ -252,30 +256,30 @@ function SettingsContent() {
           {/* Profile Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>プロフィール</CardTitle>
+              <CardTitle>{t("profile")}</CardTitle>
               <CardDescription>
-                表示名と言語を設定してください
+                {t("profileDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="displayName">表示名</Label>
+                <Label htmlFor="displayName">{t("displayName")}</Label>
                 <Input
                   id="displayName"
-                  placeholder="あなたの名前"
+                  placeholder={t("displayNamePlaceholder")}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  パートナーに表示される名前です
+                  {t("displayNameHint")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="language">使用言語</Label>
+                <Label htmlFor="language">{t("language")}</Label>
                 <Select value={language} onValueChange={(v) => setLanguage(v as LanguageCode)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="言語を選択" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {LANGUAGES.map((lang) => (
@@ -286,12 +290,22 @@ function SettingsContent() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  翻訳の対象言語として使用されます
+                  {t("languageHint")}
+                </p>
+              </div>
+
+              <Separator className="my-4" />
+
+              <div className="space-y-2">
+                <Label>{t("displayLanguage")}</Label>
+                <LanguageSwitcher />
+                <p className="text-xs text-muted-foreground">
+                  {t("displayLanguageHint")}
                 </p>
               </div>
 
               <Button onClick={handleSave} disabled={saving}>
-                {saving ? "保存中..." : "保存"}
+                {saving ? t("savingButton") : t("saveButton")}
               </Button>
             </CardContent>
           </Card>
@@ -299,27 +313,25 @@ function SettingsContent() {
           {/* Subscription Info */}
           <Card>
             <CardHeader>
-              <CardTitle>プラン情報</CardTitle>
+              <CardTitle>{t("planInfo")}</CardTitle>
               <CardDescription>
-                現在のプランと利用状況
+                {t("planDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">現在のプラン</span>
+                <span className="text-muted-foreground">{t("currentPlan")}</span>
                 <span className="font-medium capitalize">{data.subscription.plan}</span>
               </div>
 
               {data.subscription.cancel_at_period_end && (
                 <div className="rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3">
                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    ⚠️ {data.subscription.current_period_end
-                      ? `${new Date(data.subscription.current_period_end).toLocaleDateString("ja-JP", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}にキャンセル予定`
-                      : "期間終了時にキャンセル予定"}
+                    {t("cancelScheduled", {
+                      date: data.subscription.current_period_end
+                        ? new Date(data.subscription.current_period_end).toLocaleDateString()
+                        : ""
+                    })}
                   </p>
                 </div>
               )}
@@ -328,10 +340,10 @@ function SettingsContent() {
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">今月の利用時間</span>
+                  <span className="text-muted-foreground">{t("currentMonthUsage")}</span>
                   <span>
-                    {data.usage.minutes_used}分
-                    {planLimit.minutes !== -1 && ` / ${planLimit.minutes}分`}
+                    {data.usage.minutes_used}{tc("minute")}
+                    {planLimit.minutes !== -1 && ` / ${planLimit.minutes}${tc("minute")}`}
                   </span>
                 </div>
                 {planLimit.minutes !== -1 && (
@@ -347,7 +359,7 @@ function SettingsContent() {
               {data.subscription.plan === "free" ? (
                 <Link href="/plans">
                   <Button className="w-full">
-                    プランをアップグレード
+                    {t("upgradeButton")}
                   </Button>
                 </Link>
               ) : (
@@ -357,7 +369,7 @@ function SettingsContent() {
                   onClick={handleManageSubscription}
                   disabled={processingPortal}
                 >
-                  {processingPortal ? "処理中..." : "サブスクリプションを管理"}
+                  {processingPortal ? tc("loading") : t("manageSubscription")}
                 </Button>
               )}
             </CardContent>
@@ -366,41 +378,37 @@ function SettingsContent() {
           {/* Partner Info */}
           <Card>
             <CardHeader>
-              <CardTitle>パートナー連携</CardTitle>
+              <CardTitle>{t("partnerLink")}</CardTitle>
               <CardDescription>
-                パートナーとの連携状況
+                {t("partnerLinkDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {data.partnership && data.partner ? (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">パートナー</span>
+                    <span className="text-muted-foreground">{t("partnerName")}</span>
                     <span className="font-medium">
-                      {data.partner.display_name || "名前未設定"}
+                      {data.partner.display_name || "-"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">言語</span>
+                    <span className="text-muted-foreground">{t("language")}</span>
                     <span>
                       {LANGUAGES.find(l => l.code === data.partner?.language)?.nativeName || data.partner.language}
                     </span>
                   </div>
-                  {data.partnership.partnership_name && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">パートナーシップ名</span>
-                      <span>{data.partnership.partnership_name}</span>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="text-center py-4">
                   <p className="text-muted-foreground mb-4">
-                    パートナーと連携していません
+                    {t("notLinked")}
                   </p>
-                  <Button variant="outline" disabled>
-                    パートナーを招待（準備中）
-                  </Button>
+                  <Link href="/partners">
+                    <Button variant="outline">
+                      {t("inviteButton")}
+                    </Button>
+                  </Link>
                 </div>
               )}
             </CardContent>
@@ -409,21 +417,21 @@ function SettingsContent() {
           {/* Account Info */}
           <Card>
             <CardHeader>
-              <CardTitle>アカウント</CardTitle>
+              <CardTitle>{t("account")}</CardTitle>
               <CardDescription>
-                アカウント情報
+                {t("accountDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">メールアドレス</span>
+                <span className="text-muted-foreground">{t("emailAddress")}</span>
                 <span className="text-sm">{data.email}</span>
               </div>
 
               <Separator />
 
               <Button variant="destructive" onClick={handleSignOut} className="w-full">
-                ログアウト
+                {t("logoutButton")}
               </Button>
 
               <Separator />
@@ -431,33 +439,32 @@ function SettingsContent() {
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" className="w-full text-destructive hover:text-destructive">
-                    アカウントを削除
+                    {t("deleteAccount")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>アカウントを削除しますか？</AlertDialogTitle>
+                    <AlertDialogTitle>{t("deletePrompt")}</AlertDialogTitle>
                     <AlertDialogDescription className="space-y-3">
                       <p>
-                        この操作は取り消せません。以下のデータが削除されます：
+                        {t("deleteDescription")}
                       </p>
                       <ul className="list-disc pl-5 space-y-1 text-sm">
-                        <li>プロフィール情報</li>
-                        <li>サブスクリプション（キャンセルされます）</li>
-                        <li>パートナー連携</li>
+                        <li>{t("deleteList1")}</li>
+                        <li>{t("deleteList2")}</li>
+                        <li>{t("deleteList3")}</li>
                       </ul>
                       <p className="text-sm text-muted-foreground">
-                        ※会話履歴・音声データは匿名化され、サービス改善のために保持されます。
-                        完全削除をご希望の場合は support@aibond.com までご連絡ください。
+                        {t("deleteNote")}
                       </p>
                       <div className="pt-2">
                         <Label htmlFor="deleteConfirm" className="text-sm font-medium">
-                          確認のため「削除する」と入力してください
+                          {t("confirmDelete")}
                         </Label>
                         <Input
                           id="deleteConfirm"
                           className="mt-2"
-                          placeholder="削除する"
+                          placeholder={t("confirmDeletePlaceholder")}
                           value={deleteConfirmText}
                           onChange={(e) => setDeleteConfirmText(e.target.value)}
                         />
@@ -466,14 +473,14 @@ function SettingsContent() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel onClick={() => setDeleteConfirmText("")}>
-                      キャンセル
+                      {tc("cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeleteAccount}
-                      disabled={deleteConfirmText !== "削除する" || deletingAccount}
+                      disabled={deleteConfirmText !== t("confirmDeletePlaceholder") || deletingAccount}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      {deletingAccount ? "削除中..." : "削除する"}
+                      {deletingAccount ? t("deletingButton") : t("deleteButton")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -484,9 +491,9 @@ function SettingsContent() {
           {/* Legal Links */}
           <Card>
             <CardHeader>
-              <CardTitle>法的情報</CardTitle>
+              <CardTitle>{t("legalInfo")}</CardTitle>
               <CardDescription>
-                利用規約とプライバシーポリシー
+                {t("legalDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -510,7 +517,7 @@ function SettingsContent() {
                     <line x1="16" y1="17" x2="8" y2="17" />
                     <polyline points="10 9 9 9 8 9" />
                   </svg>
-                  利用規約
+                  {t("termsOfService")}
                 </Button>
               </Link>
               <Link href="/privacy" className="block">
@@ -529,7 +536,7 @@ function SettingsContent() {
                   >
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
-                  プライバシーポリシー
+                  {t("privacyPolicy")}
                 </Button>
               </Link>
             </CardContent>
@@ -537,26 +544,30 @@ function SettingsContent() {
         </div>
       </main>
 
-      <LoadingOverlay open={processingPortal} message="処理中..." />
+      <LoadingOverlay open={processingPortal} message={tc("loading")} />
     </div>
   );
 }
 
-function Header({ email, onSignOut }: { email: string | null; onSignOut: () => void }) {
+function Header({ t, tc, email, onSignOut }: { t: ReturnType<typeof useTranslations>; tc: ReturnType<typeof useTranslations>; email: string | null; onSignOut: () => void }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-primary">Aibond</span>
+      <div className="flex h-14 md:h-16 items-center justify-between px-4">
+        <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-xl md:text-2xl font-bold text-primary">{tc("appName")}</span>
         </Link>
-        <nav className="flex items-center gap-4">
+        <nav className="flex items-center gap-2 md:gap-4">
+          <LanguageSwitcher />
           <Link href="/dashboard">
-            <Button variant="ghost" size="sm">
-              ダッシュボード
+            <Button variant="ghost" size="sm" className="px-2 md:px-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="md:hidden">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+              <span className="hidden md:inline">{t("backToDashboard")}</span>
             </Button>
           </Link>
           {email && (
-            <span className="text-sm text-muted-foreground">{email}</span>
+            <span className="hidden md:inline text-sm text-muted-foreground">{email}</span>
           )}
         </nav>
       </div>

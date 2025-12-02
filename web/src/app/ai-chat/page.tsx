@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,10 +40,12 @@ interface Consultation {
 }
 
 export default function AIChatPage() {
+  const tc = useTranslations("common");
+
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">読み込み中...</div>
+        <div className="animate-pulse text-muted-foreground">{tc("loading")}</div>
       </div>
     }>
       <AIChatContent />
@@ -53,6 +56,8 @@ export default function AIChatPage() {
 function AIChatContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("aiChat");
+  const tc = useTranslations("common");
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [currentConsultation, setCurrentConsultation] = useState<Consultation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -123,7 +128,7 @@ function AIChatContent() {
       setMessages(data.consultation.chat_history || []);
     } catch (error) {
       console.error("Error fetching consultation:", error);
-      toast.error("相談の取得に失敗しました");
+      toast.error(t("fetchFailed"));
     } finally {
       setLoading(false);
     }
@@ -173,7 +178,7 @@ function AIChatContent() {
       if (!res.ok) {
         const data = await res.json();
         setMessages((prev) => prev.slice(0, -1));
-        toast.error(data.error || "送信に失敗しました");
+        toast.error(data.error || t("sendFailed"));
         setSending(false);
         return;
       }
@@ -227,7 +232,7 @@ function AIChatContent() {
           if (fullContent) {
             const assistantMessage: ChatMessage = {
               role: "assistant",
-              content: fullContent + "\n\n（生成を停止しました）",
+              content: fullContent + "\n\n" + t("stopped"),
               timestamp: new Date().toISOString(),
             };
             setMessages((prev) => [...prev, assistantMessage]);
@@ -262,7 +267,7 @@ function AIChatContent() {
       }
       console.error("Error sending message:", error);
       setMessages((prev) => prev.slice(0, -1));
-      toast.error("送信に失敗しました");
+      toast.error(t("sendFailed"));
     } finally {
       setSending(false);
       setStreamingContent("");
@@ -298,7 +303,7 @@ function AIChatContent() {
       if (res.ok) {
         // リストから削除
         setConsultations((prev) => prev.filter((c) => c.id !== targetId));
-        toast.success("相談を削除しました");
+        toast.success(t("deleteSuccess"));
 
         // 現在表示中の相談を削除した場合は新規画面へ
         if (currentConsultation?.id === targetId) {
@@ -307,11 +312,11 @@ function AIChatContent() {
       } else {
         const data = await res.json();
         console.error("[AI Chat] Delete failed:", data);
-        toast.error("削除に失敗しました");
+        toast.error(t("deleteFailed"));
       }
     } catch (error) {
       console.error("Error deleting consultation:", error);
-      toast.error("削除に失敗しました");
+      toast.error(t("deleteFailed"));
     } finally {
       setIsDeleting(false);
     }
@@ -350,7 +355,7 @@ function AIChatContent() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header onMenuClick={() => setShowSidebar(!showSidebar)} />
+      <Header t={t} tc={tc} onMenuClick={() => setShowSidebar(!showSidebar)} />
 
       <div className="flex flex-1 overflow-hidden">
         {/* サイドバー（モバイルではオーバーレイ） */}
@@ -363,23 +368,22 @@ function AIChatContent() {
           style={{ top: "56px" }}
         >
           <div className="p-4">
-            <Button onClick={startNewChat} className="w-full mb-4">
+            <Button onClick={startNewChat} className="w-full mb-4 gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
+                width="18"
+                height="18"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="mr-2"
               >
                 <path d="M12 5v14" />
                 <path d="M5 12h14" />
               </svg>
-              新しい相談
+              {t("newConsultation")}
             </Button>
 
             <div className="space-y-1">
@@ -399,7 +403,7 @@ function AIChatContent() {
                     onClick={() => selectConsultation(c.id)}
                     className="flex-1 text-left px-3 py-2 text-sm truncate"
                   >
-                    {c.title || "無題の相談"}
+                    {c.title || t("untitledConsultation")}
                   </button>
 
                   {/* Desktop: ホバーで×ボタン表示 */}
@@ -471,7 +475,7 @@ function AIChatContent() {
                           <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                           <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                         </svg>
-                        削除
+                        {t("deleteMenuItem")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -479,7 +483,7 @@ function AIChatContent() {
               ))}
               {consultations.length === 0 && (
                 <p className="text-sm text-muted-foreground px-3 py-2">
-                  相談履歴がありません
+                  {t("noHistory")}
                 </p>
               )}
             </div>
@@ -498,7 +502,7 @@ function AIChatContent() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">読み込み中...</div>
+              <div className="animate-pulse text-muted-foreground">{tc("loading")}</div>
             </div>
           ) : (
             <>
@@ -522,10 +526,9 @@ function AIChatContent() {
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
                     </div>
-                    <h2 className="text-xl font-semibold mb-2">AIに相談する</h2>
+                    <h2 className="text-xl font-semibold mb-2">{t("aiConsultDescription")}</h2>
                     <p className="text-muted-foreground max-w-md">
-                      パートナーとの関係について相談できます。
-                      過去の会話サマリーを参考に、あなたに合ったアドバイスを提供します。
+                      {t("aiConsultExplanation")}
                     </p>
                   </div>
                 ) : (
@@ -587,12 +590,12 @@ function AIChatContent() {
               </div>
 
               {/* 入力欄 */}
-              <div className="border-t p-4 bg-background">
+              <div className="border-t p-4 pb-20 md:pb-4 bg-background">
                 <div className="max-w-2xl mx-auto">
                   <div className="relative flex items-end gap-2 rounded-2xl border bg-muted/50 p-2 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
                     <Textarea
                       ref={textareaRef}
-                      placeholder="メッセージを入力... (Cmd+Enterで送信)"
+                      placeholder={t("messagePlaceholder")}
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyDown={handleKeyDown}
@@ -645,7 +648,7 @@ function AIChatContent() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2 text-center">
-                    Enterで改行 / Cmd+Enter (Ctrl+Enter) で送信
+                    {t("enterToNewline")} / {t("cmdEnterToSend")}
                   </p>
                 </div>
               </div>
@@ -658,33 +661,33 @@ function AIChatContent() {
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>相談を削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>{t("deletePrompt")}</AlertDialogTitle>
             <AlertDialogDescription>
-              「{deleteTarget?.title || "無題の相談"}」を削除します。この操作は取り消せません。
+              {t("deleteDescription", { title: deleteTarget?.title || t("untitledConsultation") })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={deleteConsultation}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              削除
+              {tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* ローディングオーバーレイ */}
-      <LoadingOverlay open={isDeleting} message="削除中..." />
+      <LoadingOverlay open={isDeleting} message={tc("loading")} />
     </div>
   );
 }
 
-function Header({ onMenuClick }: { onMenuClick: () => void }) {
+function Header({ t, tc, onMenuClick }: { t: any; tc: any; onMenuClick: () => void }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-14 items-center justify-between px-4">
+      <div className="flex h-14 items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <button
             onClick={onMenuClick}
@@ -720,12 +723,12 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
             >
               <path d="m15 18-6-6 6-6" />
             </svg>
-            <span className="hidden sm:inline">ダッシュボードへ</span>
+            <span className="hidden sm:inline">{t("backToDashboard")}</span>
           </Link>
         </div>
-        <h1 className="text-lg font-semibold">AI相談</h1>
-        <Link href="/dashboard" className="text-xl font-bold text-primary">
-          Aibond
+        <h1 className="text-base md:text-lg font-semibold">{t("pageTitle")}</h1>
+        <Link href="/dashboard" className="text-lg md:text-xl font-bold text-primary">
+          {tc("appName")}
         </Link>
       </div>
     </header>

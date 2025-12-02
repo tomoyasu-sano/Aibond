@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function SignupPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
+  const tc = useTranslations("common");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +27,7 @@ export default function SignupPage() {
 
   const handleGoogleSignup = async () => {
     if (!agreedToTerms) {
-      setError("利用規約に同意してください");
+      setError(t("agreeToTerms"));
       return;
     }
 
@@ -40,7 +43,7 @@ export default function SignupPage() {
     });
 
     if (error) {
-      setError("Google登録に失敗しました");
+      setError(t("googleLoginFailed"));
       setGoogleLoading(false);
     }
   };
@@ -49,7 +52,7 @@ export default function SignupPage() {
     e.preventDefault();
 
     if (!agreedToTerms) {
-      setError("利用規約に同意してください");
+      setError(t("agreeToTerms"));
       return;
     }
 
@@ -57,13 +60,13 @@ export default function SignupPage() {
     setLoading(true);
 
     if (password !== confirmPassword) {
-      setError("パスワードが一致しません");
+      setError(t("passwordMismatch"));
       setLoading(false);
       return;
     }
 
     if (password.length < 6) {
-      setError("パスワードは6文字以上で入力してください");
+      setError(t("passwordTooShort"));
       setLoading(false);
       return;
     }
@@ -79,7 +82,7 @@ export default function SignupPage() {
 
     if (error) {
       if (error.message.includes("already registered")) {
-        setError("このメールアドレスは既に登録されています");
+        setError(t("emailAlreadyRegistered"));
       } else {
         setError(error.message);
       }
@@ -97,18 +100,16 @@ export default function SignupPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <Link href="/" className="inline-block mb-4">
-              <span className="text-2xl font-bold text-primary">Aibond</span>
+              <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
             </Link>
-            <CardTitle className="text-2xl">確認メールを送信しました</CardTitle>
+            <CardTitle className="text-2xl">{t("confirmationEmailSent")}</CardTitle>
             <CardDescription>
-              {email} に確認メールを送信しました。
-              <br />
-              メール内のリンクをクリックして登録を完了してください。
+              {t("confirmationEmailDescription", { email })}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
             <Link href="/login">
-              <Button variant="outline">ログインページへ</Button>
+              <Button variant="outline">{t("goToLogin")}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -121,11 +122,11 @@ export default function SignupPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <Link href="/" className="inline-block mb-4">
-            <span className="text-2xl font-bold text-primary">Aibond</span>
+            <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
           </Link>
-          <CardTitle className="text-2xl">新規登録</CardTitle>
+          <CardTitle className="text-2xl">{t("signupPageTitle")}</CardTitle>
           <CardDescription>
-            アカウントを作成して始めましょう
+            {t("signupDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -136,7 +137,7 @@ export default function SignupPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">メールアドレス</Label>
+              <Label htmlFor="email">{tc("email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -148,11 +149,11 @@ export default function SignupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">パスワード</Label>
+              <Label htmlFor="password">{tc("password")}</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="6文字以上"
+                placeholder={t("passwordPlaceholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -161,11 +162,11 @@ export default function SignupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">パスワード（確認）</Label>
+              <Label htmlFor="confirmPassword">{tc("confirmPassword")}</Label>
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="パスワードを再入力"
+                placeholder={t("confirmPasswordPlaceholder")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -186,18 +187,22 @@ export default function SignupPage() {
                 className="text-sm leading-tight cursor-pointer"
               >
                 <Link href="/terms" className="text-primary hover:underline" target="_blank">
-                  利用規約
+                  {t("termsOfService")}
                 </Link>
-                と
-                <Link href="/privacy" className="text-primary hover:underline" target="_blank">
-                  プライバシーポリシー
-                </Link>
-                に同意します
+                {" "}{t("privacyPolicy") && (
+                  <>
+                    {" / "}
+                    <Link href="/privacy" className="text-primary hover:underline" target="_blank">
+                      {t("privacyPolicy")}
+                    </Link>
+                  </>
+                )}
+                {t("agreeText")}
               </label>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading || googleLoading || !agreedToTerms}>
-              {loading ? "登録中..." : "無料で始める"}
+              {loading ? t("signingUp") : t("signupButtonText")}
             </Button>
           </form>
 
@@ -206,7 +211,7 @@ export default function SignupPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">または</span>
+              <span className="bg-background px-2 text-muted-foreground">{tc("or")}</span>
             </div>
           </div>
 
@@ -218,7 +223,7 @@ export default function SignupPage() {
             disabled={loading || googleLoading || !agreedToTerms}
           >
             {googleLoading ? (
-              "接続中..."
+              t("connecting")
             ) : (
               <>
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -239,15 +244,15 @@ export default function SignupPage() {
                     fill="#EA4335"
                   />
                 </svg>
-                Googleで登録
+                {t("googleSignup")}
               </>
             )}
           </Button>
 
           <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">既にアカウントをお持ちの方は</span>{" "}
+            <span className="text-muted-foreground">{t("alreadyHaveAccount")}</span>{" "}
             <Link href="/login" className="text-primary hover:underline">
-              ログイン
+              {tc("login")}
             </Link>
           </div>
         </CardContent>

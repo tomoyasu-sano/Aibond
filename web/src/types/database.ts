@@ -142,3 +142,53 @@ export const PLAN_LIMITS: Record<PlanType, { minutes: number; label: string }> =
   standard: { minutes: 900, label: "月15時間" },
   premium: { minutes: -1, label: "無制限" },
 };
+
+// Talk Sentiment Analysis
+export type SentimentStatus = "completed" | "insufficient_data" | "failed";
+export type SkipReason = "too_few_sentences" | "too_short" | "single_speaker" | null;
+export type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
+
+export interface TalkSentimentInsights {
+  goodPoints: string[];
+  concerns: string[];
+  suggestions: string[];
+  comparisonWithPrevious: string;
+  overallComment: string;
+}
+
+export interface TalkSentiment {
+  id: string;
+  talk_id: string;
+  partnership_id: string | null;
+  status: SentimentStatus;
+  skip_reason: SkipReason;
+  // 感情バランス（%）
+  positive_ratio: number | null;
+  neutral_ratio: number | null;
+  negative_ratio: number | null;
+  // 話者別感情バランス
+  user1_positive_ratio: number | null;
+  user1_negative_ratio: number | null;
+  user2_positive_ratio: number | null;
+  user2_negative_ratio: number | null;
+  // 生データ
+  raw_volatility_stddev: number | null;
+  sentence_count: number | null;
+  total_characters: number | null;
+  // スコア（1-10）
+  volatility_score: number | null;
+  constructiveness_score: number | null;
+  understanding_score: number | null;
+  overall_score: number | null;
+  // AI生成コメント
+  ai_insights: TalkSentimentInsights | null;
+  // メタデータ
+  talk_duration_minutes: number | null;
+  talk_time_of_day: TimeOfDay | null;
+  talk_day_of_week: number | null;
+  // 分析情報
+  analyzed_at: string;
+  analysis_version: string;
+  analysis_language: string | null;
+  created_at: string;
+}

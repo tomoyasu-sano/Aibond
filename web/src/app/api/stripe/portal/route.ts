@@ -7,6 +7,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+// Stripeがサポートする言語コードへのマッピング
+function getStripeLocale(locale: string): 'ja' | 'en' | 'auto' {
+  if (locale === 'ja') return 'ja';
+  if (locale === 'en') return 'en';
+  return 'auto';
+}
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -37,10 +45,16 @@ export async function POST(request: NextRequest) {
 
     const stripe = getStripe();
 
+    // Cookie から言語設定を取得
+    const cookieStore = await cookies();
+    const cookieLocale = cookieStore.get('NEXT_LOCALE')?.value;
+    const locale = getStripeLocale(cookieLocale || 'ja');
+
     // Customer Portalセッションを作成
     const session = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
       return_url: `${request.nextUrl.origin}/settings`,
+      locale: locale,
     });
 
     return NextResponse.json({ url: session.url });

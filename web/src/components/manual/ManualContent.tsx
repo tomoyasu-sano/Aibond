@@ -112,10 +112,6 @@ export function ManualContent({
 
       {/* Main Content */}
       <main className="w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
-        <p className="text-center text-muted-foreground mb-6">
-          {t("pageDescription")}
-        </p>
-
         {/* PC: 左右2カラム、スマホ: タブ切り替え */}
         <div className="hidden lg:grid lg:grid-cols-2 lg:gap-8">
           {/* 左: 自分の本棚 */}

@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
+  const t = useTranslations("auth");
+  const tc = useTranslations("common");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +36,7 @@ function LoginForm() {
 
     if (error) {
       setError(error.message === "Invalid login credentials"
-        ? "メールアドレスまたはパスワードが正しくありません"
+        ? t("invalidCredentials")
         : error.message);
       setLoading(false);
       return;
@@ -56,7 +59,7 @@ function LoginForm() {
     });
 
     if (error) {
-      setError("Googleログインに失敗しました");
+      setError(t("googleLoginFailed"));
       setGoogleLoading(false);
     }
   };
@@ -65,11 +68,11 @@ function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <Link href="/" className="inline-block mb-4">
-          <span className="text-2xl font-bold text-primary">Aibond</span>
+          <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
         </Link>
-        <CardTitle className="text-2xl">ログイン</CardTitle>
+        <CardTitle className="text-2xl">{t("loginPageTitle")}</CardTitle>
         <CardDescription>
-          アカウントにログインしてください
+          {t("loginDescription")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -80,7 +83,7 @@ function LoginForm() {
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email">メールアドレス</Label>
+            <Label htmlFor="email">{tc("email")}</Label>
             <Input
               id="email"
               type="email"
@@ -92,7 +95,7 @@ function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">パスワード</Label>
+            <Label htmlFor="password">{tc("password")}</Label>
             <Input
               id="password"
               type="password"
@@ -105,7 +108,7 @@ function LoginForm() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading || googleLoading}>
-            {loading ? "ログイン中..." : "ログイン"}
+            {loading ? t("loggingIn") : t("loginButtonText")}
           </Button>
         </form>
 
@@ -114,7 +117,7 @@ function LoginForm() {
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">または</span>
+            <span className="bg-background px-2 text-muted-foreground">{tc("or")}</span>
           </div>
         </div>
 
@@ -126,7 +129,7 @@ function LoginForm() {
           disabled={loading || googleLoading}
         >
           {googleLoading ? (
-            "接続中..."
+            t("connecting")
           ) : (
             <>
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -147,15 +150,15 @@ function LoginForm() {
                   fill="#EA4335"
                 />
               </svg>
-              Googleでログイン
+              {t("googleLogin")}
             </>
           )}
         </Button>
 
         <div className="mt-6 text-center text-sm">
-          <span className="text-muted-foreground">アカウントをお持ちでない方は</span>{" "}
+          <span className="text-muted-foreground">{t("noAccount")}</span>{" "}
           <Link href="/signup" className="text-primary hover:underline">
-            新規登録
+            {t("signupLink")}
           </Link>
         </div>
       </CardContent>

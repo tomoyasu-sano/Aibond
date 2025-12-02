@@ -74,7 +74,7 @@ export async function ManualCard({ userId, partnershipId }: ManualCardProps) {
           </svg>
           {t("manual")}
         </CardTitle>
-        <CardDescription>{t("manualDescription")}</CardDescription>
+        <CardDescription>2人の取扱を作ろう</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2 mb-4">
@@ -91,7 +91,7 @@ export async function ManualCard({ userId, partnershipId }: ManualCardProps) {
         </div>
         <Link href="/manual">
           <Button variant="outline" className="w-full">
-            {t("openManual")}
+            取説を作る
           </Button>
         </Link>
       </CardContent>

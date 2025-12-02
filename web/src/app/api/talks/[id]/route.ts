@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { generateTalkSummary } from "@/lib/gemini/client";
 import { updateUsageAndNotify } from "@/lib/usage/client";
+import { analyzeTalk, getTimeOfDay, type PreviousAnalysis } from "@/lib/sentiment";
 import { NextResponse } from "next/server";
+import type { TimeOfDay } from "@/types/database";
 
 // GET - Get single talk with messages
 export async function GET(
@@ -290,11 +292,118 @@ async function generateSummaryAsync(
     }
 
     console.log("[Summary] Completed successfully for talk:", talkId);
+
+    // サマリー生成後に感情分析を実行
+    await analyzeSentimentAsync(talkId, talk, messagesWithNames, supabase);
   } catch (error) {
     console.error("[Summary] Unexpected error:", error);
     await supabase
       .from("talks")
       .update({ summary_status: "failed" })
       .eq("id", talkId);
+  }
+}
+
+/**
+ * 感情分析を非同期で実行
+ */
+async function analyzeSentimentAsync(
+  talkId: string,
+  talk: Record<string, unknown>,
+  messages: Array<{ speaker_tag: number; original_text: string; speaker_name?: string }>,
+  supabase: Awaited<ReturnType<typeof createClient>>
+) {
+  try {
+    console.log("[Sentiment] Starting async analysis for talk:", talkId);
+
+    // 過去3回分の分析結果を取得
+    let previousAnalyses: PreviousAnalysis[] = [];
+    if (talk.partnership_id) {
+      const { data: previousSentiments } = await supabase
+        .from("talk_sentiments")
+        .select("*, talks(started_at)")
+        .eq("partnership_id", talk.partnership_id)
+        .eq("status", "completed")
+        .neq("talk_id", talkId)
+        .order("analyzed_at", { ascending: false })
+        .limit(3);
+
+      if (previousSentiments) {
+        previousAnalyses = previousSentiments.map((s) => ({
+          date: new Date(s.talks?.started_at || s.analyzed_at).toLocaleDateString("ja-JP"),
+          constructivenessScore: s.constructiveness_score || 5,
+          understandingScore: s.understanding_score || 5,
+          volatilityScore: s.volatility_score || 5,
+          overallComment: (s.ai_insights as { overallComment?: string })?.overallComment || "",
+        }));
+      }
+    }
+
+    // 分析用のメッセージを作成
+    const analysisMessages = messages.map((m) => ({
+      text: m.original_text,
+      speakerTag: m.speaker_tag,
+      speakerName: m.speaker_name,
+    }));
+
+    const talkStartedAt = new Date(talk.started_at as string);
+
+    // 分析を実行
+    const result = await analyzeTalk(
+      analysisMessages,
+      "ja", // TODO: ユーザーの言語設定を使用
+      previousAnalyses,
+      {
+        datetime: talk.started_at as string,
+        timeOfDay: getTimeOfDay(talkStartedAt),
+        duration: (talk.duration_minutes as number) || 0,
+        user1Name: (talk.speaker1_name as string) || "話者1",
+        user2Name: (talk.speaker2_name as string) || "話者2",
+      }
+    );
+
+    // 結果を保存
+    const sentimentData = {
+      talk_id: talkId,
+      partnership_id: talk.partnership_id,
+      status: result.status,
+      skip_reason: result.skipReason,
+      analyzed_at: new Date().toISOString(),
+      analysis_language: "ja",
+      analysis_version: "v1",
+      talk_duration_minutes: talk.duration_minutes,
+      talk_time_of_day: getTimeOfDay(talkStartedAt) as TimeOfDay,
+      talk_day_of_week: talkStartedAt.getDay(),
+      ...(result.status === "completed" && result.sentiment && result.evaluation
+        ? {
+            positive_ratio: result.sentiment.positiveRatio,
+            neutral_ratio: result.sentiment.neutralRatio,
+            negative_ratio: result.sentiment.negativeRatio,
+            user1_positive_ratio: result.sentiment.user1PositiveRatio,
+            user1_negative_ratio: result.sentiment.user1NegativeRatio,
+            user2_positive_ratio: result.sentiment.user2PositiveRatio,
+            user2_negative_ratio: result.sentiment.user2NegativeRatio,
+            raw_volatility_stddev: result.sentiment.rawVolatilityStddev,
+            volatility_score: result.sentiment.volatilityScore,
+            sentence_count: result.sentiment.sentenceCount,
+            total_characters: result.sentiment.totalCharacters,
+            constructiveness_score: result.evaluation.constructivenessScore,
+            understanding_score: result.evaluation.understandingScore,
+            ai_insights: result.evaluation.insights,
+          }
+        : {}),
+    };
+
+    const { error } = await supabase
+      .from("talk_sentiments")
+      .insert(sentimentData);
+
+    if (error) {
+      console.error("[Sentiment] Error saving analysis:", error);
+    } else {
+      console.log("[Sentiment] Completed successfully for talk:", talkId, "Status:", result.status);
+    }
+  } catch (error) {
+    console.error("[Sentiment] Unexpected error:", error);
   }
 }

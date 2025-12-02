@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +33,8 @@ interface Promise {
 
 export default function PromisesPage() {
   const router = useRouter();
+  const t = useTranslations("promises");
+  const tc = useTranslations("common");
   const [promises, setPromises] = useState<Promise[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
@@ -62,7 +65,7 @@ export default function PromisesPage() {
       setPromises(data.promises || []);
     } catch (error) {
       console.error("Error fetching promises:", error);
-      toast.error("約束リストの取得に失敗しました");
+      toast.error(t("fetchFailed"));
     } finally {
       setLoading(false);
     }
@@ -92,7 +95,7 @@ export default function PromisesPage() {
             p.id === promise.id ? { ...p, is_completed: !newStatus } : p
           )
         );
-        toast.error("更新に失敗しました");
+        toast.error(t("updateFailed"));
       }
     } catch (error) {
       // 失敗したら元に戻す
@@ -101,7 +104,7 @@ export default function PromisesPage() {
           p.id === promise.id ? { ...p, is_completed: !newStatus } : p
         )
       );
-      toast.error("更新に失敗しました");
+      toast.error(t("updateFailed"));
     }
   };
 
@@ -120,13 +123,13 @@ export default function PromisesPage() {
         const data = await res.json();
         setPromises((prev) => [data.promise, ...prev]);
         setNewPromise("");
-        toast.success("約束を追加しました");
+        toast.success(t("createSuccessful"));
       } else {
-        toast.error("約束の追加に失敗しました");
+        toast.error(t("createFailed"));
       }
     } catch (error) {
       console.error("Error adding promise:", error);
-      toast.error("約束の追加に失敗しました");
+      toast.error(t("createFailed"));
     } finally {
       setIsAdding(false);
     }
@@ -142,13 +145,13 @@ export default function PromisesPage() {
 
       if (res.ok) {
         setPromises((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-        toast.success("約束を削除しました");
+        toast.success(t("deleteSuccessful"));
       } else {
-        toast.error("削除に失敗しました");
+        toast.error(t("deleteFailed"));
       }
     } catch (error) {
       console.error("Error deleting promise:", error);
-      toast.error("削除に失敗しました");
+      toast.error(t("deleteFailed"));
     } finally {
       setDeleteTarget(null);
     }
@@ -167,13 +170,13 @@ export default function PromisesPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header t={t} tc={tc} />
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-2">約束リスト</h1>
+          <h1 className="text-2xl font-bold mb-2">{t("pageTitle")}</h1>
           <p className="text-muted-foreground">
-            未完了: {pendingCount}件 / 完了: {completedCount}件
+            {t("statusSummary", { pending: pendingCount, completed: completedCount })}
           </p>
         </div>
 
@@ -184,21 +187,21 @@ export default function PromisesPage() {
             size="sm"
             onClick={() => setFilter("all")}
           >
-            すべて
+            {t("allTab")}
           </Button>
           <Button
             variant={filter === "pending" ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter("pending")}
           >
-            未完了
+            {t("pending")}
           </Button>
           <Button
             variant={filter === "completed" ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter("completed")}
           >
-            完了
+            {t("completedTab")}
           </Button>
         </div>
 
@@ -207,7 +210,7 @@ export default function PromisesPage() {
           <CardContent className="pt-4">
             <div className="flex gap-2">
               <Input
-                placeholder="新しい約束を追加..."
+                placeholder={t("addNewPromise")}
                 value={newPromise}
                 onChange={(e) => setNewPromise(e.target.value)}
                 onKeyDown={(e) => {
@@ -217,7 +220,7 @@ export default function PromisesPage() {
                 }}
               />
               <Button onClick={addPromise} disabled={isAdding || !newPromise.trim()}>
-                {isAdding ? "追加中..." : "追加"}
+                {isAdding ? t("addingButton") : t("addButton")}
               </Button>
             </div>
           </CardContent>
@@ -235,13 +238,13 @@ export default function PromisesPage() {
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
                 {filter === "pending"
-                  ? "未完了の約束はありません"
+                  ? t("noPendingPromises")
                   : filter === "completed"
-                  ? "完了した約束はありません"
-                  : "約束がありません"}
+                  ? t("noCompletedPromises")
+                  : t("noPromises")}
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                会話から自動で抽出されるか、上から手動で追加できます
+                {t("helpText")}
               </p>
             </CardContent>
           </Card>
@@ -270,10 +273,10 @@ export default function PromisesPage() {
                       <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                         <span>{formatDate(promise.created_at)}</span>
                         {promise.is_manual ? (
-                          <span className="bg-muted px-1.5 py-0.5 rounded">手動</span>
+                          <span className="bg-muted px-1.5 py-0.5 rounded">{t("manual")}</span>
                         ) : (
                           <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                            AI抽出
+                            {t("aiExtracted")}
                           </span>
                         )}
                         {promise.talk_id && (
@@ -281,7 +284,7 @@ export default function PromisesPage() {
                             href={`/talks/${promise.talk_id}`}
                             className="text-primary hover:underline"
                           >
-                            会話を見る
+                            {t("viewConversation")}
                           </Link>
                         )}
                       </div>
@@ -320,14 +323,14 @@ export default function PromisesPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>約束を削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>{t("deletePrompt")}</AlertDialogTitle>
             <AlertDialogDescription>
-              「{deleteTarget?.content}」を削除します。この操作は取り消せません。
+              {t("deleteDescription", { content: deleteTarget?.content || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction onClick={deletePromise}>削除</AlertDialogAction>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={deletePromise}>{tc("delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -335,7 +338,7 @@ export default function PromisesPage() {
   );
 }
 
-function Header() {
+function Header({ t, tc }: { t: any; tc: any }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
@@ -353,10 +356,10 @@ function Header() {
           >
             <path d="m15 18-6-6 6-6" />
           </svg>
-          <span>ダッシュボードへ</span>
+          <span>{t("backToDashboard")}</span>
         </Link>
         <Link href="/dashboard" className="text-xl font-bold text-primary">
-          Aibond
+          {tc("appName")}
         </Link>
       </div>
     </header>

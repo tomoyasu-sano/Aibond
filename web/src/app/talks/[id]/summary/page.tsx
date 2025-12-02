@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SpeakerMappingDialog } from "@/components/talk/SpeakerMappingDialog";
@@ -28,6 +29,9 @@ export default function SummaryPage() {
   const router = useRouter();
   const params = useParams();
   const talkId = params.id as string;
+  const t = useTranslations("summary");
+  const tt = useTranslations("talks");
+  const tc = useTranslations("common");
 
   const [talk, setTalk] = useState<Talk | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,7 +80,7 @@ export default function SummaryPage() {
       setTalk(data.talk);
     } catch (error) {
       console.error("Error fetching talk:", error);
-      toast.error("会話の取得に失敗しました");
+      toast.error(t("generationFailed"));
     } finally {
       setLoading(false);
     }
@@ -104,13 +108,13 @@ export default function SummaryPage() {
               }
             : null
         );
-        toast.success("サマリーを再生成しました");
+        toast.success(t("generatingMessage"));
       } else {
-        toast.error("サマリーの生成に失敗しました");
+        toast.error(t("generationFailed"));
       }
     } catch (error) {
       console.error("Error regenerating summary:", error);
-      toast.error("サマリーの生成に失敗しました");
+      toast.error(t("generationFailed"));
     } finally {
       setIsGenerating(false);
     }
@@ -137,7 +141,7 @@ export default function SummaryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        <Header t={t} tt={tt} tc={tc} />
         <main className="container mx-auto px-4 py-8">
           <div className="animate-pulse space-y-4">
             <div className="h-8 w-48 bg-muted rounded" />
@@ -154,15 +158,15 @@ export default function SummaryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header t={t} tt={tt} tc={tc} />
 
       <main className="container mx-auto px-4 py-8 max-w-3xl">
         {/* 基本情報 */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-2">トークサマリー</h1>
+          <h1 className="text-2xl font-bold mb-2">{t("pageTitle")}</h1>
           <p className="text-muted-foreground">
             {formatDate(talk.started_at)}
-            {talk.duration_minutes && ` (${talk.duration_minutes}分)`}
+            {talk.duration_minutes && ` (${talk.duration_minutes}${tc("minute")})`}
           </p>
         </div>
 
@@ -188,7 +192,7 @@ export default function SummaryPage() {
                   <line x1="16" x2="8" y1="17" y2="17" />
                   <line x1="10" x2="8" y1="9" y2="9" />
                 </svg>
-                要約
+                {t("summary")}
               </CardTitle>
               {talk.summary_status === "generated" && (
                 <Button
@@ -197,7 +201,7 @@ export default function SummaryPage() {
                   onClick={regenerateSummary}
                   disabled={isGenerating}
                 >
-                  {isGenerating ? "生成中..." : "再生成"}
+                  {isGenerating ? t("regenerating") : t("regenerate")}
                 </Button>
               )}
             </div>
@@ -206,12 +210,12 @@ export default function SummaryPage() {
             {talk.summary_status === "pending" ? (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-                サマリーを生成中...
+                {t("generatingMessage")}
               </div>
             ) : talk.summary_status === "failed" ? (
               <div className="space-y-3">
                 <p className="text-destructive">
-                  サマリーの生成に失敗しました
+                  {t("generationFailed")}
                 </p>
                 <Button
                   variant="outline"
@@ -219,13 +223,13 @@ export default function SummaryPage() {
                   onClick={regenerateSummary}
                   disabled={isGenerating}
                 >
-                  {isGenerating ? "生成中..." : "再試行"}
+                  {isGenerating ? t("regenerating") : t("retry")}
                 </Button>
               </div>
             ) : talk.summary ? (
               <p className="whitespace-pre-wrap">{talk.summary}</p>
             ) : (
-              <p className="text-muted-foreground">会話内容がありません</p>
+              <p className="text-muted-foreground">{t("noContent")}</p>
             )}
           </CardContent>
         </Card>
@@ -248,7 +252,7 @@ export default function SummaryPage() {
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
-              約束・決定事項
+              {t("promises")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -274,8 +278,8 @@ export default function SummaryPage() {
             ) : (
               <p className="text-muted-foreground">
                 {talk.summary_status === "pending"
-                  ? "生成中..."
-                  : "約束・決定事項はありません"}
+                  ? t("generatingMessage")
+                  : t("noPromises")}
               </p>
             )}
           </CardContent>
@@ -299,7 +303,7 @@ export default function SummaryPage() {
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
-              次回話すこと
+              {t("nextTopics")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -315,8 +319,8 @@ export default function SummaryPage() {
             ) : (
               <p className="text-muted-foreground">
                 {talk.summary_status === "pending"
-                  ? "生成中..."
-                  : "次回話すことはありません"}
+                  ? t("generatingMessage")
+                  : t("noNextTopics")}
               </p>
             )}
           </CardContent>
@@ -325,10 +329,10 @@ export default function SummaryPage() {
         {/* アクションボタン */}
         <div className="flex gap-3">
           <Button asChild variant="outline" className="flex-1">
-            <Link href={`/talks/${talkId}`}>会話内容を見る</Link>
+            <Link href={`/talks/${talkId}`}>{t("viewConversation")}</Link>
           </Button>
           <Button asChild className="flex-1">
-            <Link href="/talks">会話一覧へ</Link>
+            <Link href="/talks">{t("backToList")}</Link>
           </Button>
         </div>
 
@@ -339,7 +343,7 @@ export default function SummaryPage() {
             onClick={() => setShowSpeakerMapping(true)}
             className="text-sm text-muted-foreground"
           >
-            話者を設定・変更する
+            {t("setSpeaker")}
           </Button>
         </div>
       </main>
@@ -355,7 +359,7 @@ export default function SummaryPage() {
   );
 }
 
-function Header() {
+function Header({ t, tt, tc }: { t: ReturnType<typeof useTranslations>; tt: ReturnType<typeof useTranslations>; tc: ReturnType<typeof useTranslations> }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
@@ -373,10 +377,10 @@ function Header() {
           >
             <path d="m15 18-6-6 6-6" />
           </svg>
-          <span>会話一覧へ戻る</span>
+          <span>{tt("backToList")}</span>
         </Link>
         <Link href="/dashboard" className="text-xl font-bold text-primary">
-          Aibond
+          {tc("appName")}
         </Link>
       </div>
     </header>

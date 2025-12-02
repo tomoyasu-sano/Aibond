@@ -45,8 +45,6 @@ export const MANUAL_CATEGORIES = {
   },
 } as const;
 
-export type ManualCategory = keyof typeof MANUAL_CATEGORIES;
-
 // 固定質問（基本情報）
 export const FIXED_QUESTIONS = [
   { category: 'basic', question: '好きな色' },

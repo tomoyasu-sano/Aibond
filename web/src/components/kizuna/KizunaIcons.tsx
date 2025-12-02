@@ -94,6 +94,29 @@ export function MemoIcon({ size = 20, className = "" }: IconProps) {
   );
 }
 
+// 検討 - 吹き出し＋クエスチョンマーク
+export function DiscussionIcon({ size = 20, className = "" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="4" fill="#FFEDD5" />
+      <circle cx="12" cy="10" r="4" stroke="#EA580C" strokeWidth="1.5" fill="none" />
+      <path
+        d="M11 9C11 8.5 11.5 8 12 8C12.5 8 13 8.5 13 9C13 9.5 12.5 10 12 10V11"
+        stroke="#EA580C"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="13" r="0.5" fill="#EA580C" />
+      <path
+        d="M9 17L7 15"
+        stroke="#EA580C"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 // タイプアイコンをまとめて取得
 export function ItemTypeIcon({ type, size = 20, className = "" }: { type: string } & IconProps) {
   switch (type) {
@@ -101,6 +124,8 @@ export function ItemTypeIcon({ type, size = 20, className = "" }: { type: string
       return <PromiseIcon size={size} className={className} />;
     case "request":
       return <RequestIcon size={size} className={className} />;
+    case "discussion":
+      return <DiscussionIcon size={size} className={className} />;
     case "my_feeling":
       return <MyFeelingIcon size={size} className={className} />;
     case "partner_feeling":
@@ -171,7 +196,7 @@ export function ModifiedIcon({ size = 20, className = "" }: IconProps) {
   );
 }
 
-// 断念 - ×印
+// 終了 - ×印
 export function AbandonedIcon({ size = 20, className = "" }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>

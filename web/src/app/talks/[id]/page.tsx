@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -33,6 +34,9 @@ export default function TalkPage() {
   const router = useRouter();
   const params = useParams();
   const talkId = params.id as string;
+  const t = useTranslations("talkDetail");
+  const tt = useTranslations("talks");
+  const tc = useTranslations("common");
 
   const [talk, setTalk] = useState<Talk | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -138,7 +142,7 @@ export default function TalkPage() {
       }
     } catch (error) {
       console.error("Error fetching talk:", error);
-      toast.error("会話の取得に失敗しました");
+      toast.error(t("fetchFailed"));
     } finally {
       setLoading(false);
     }
@@ -333,12 +337,12 @@ export default function TalkPage() {
       setIsRecording(true);
       setIsConnecting(false);
       startTimer();
-      toast.success("録音を開始しました");
+      toast.success(t("recordingStarted"));
     } catch (error) {
       console.error("[Recording] Failed to start", error);
       cleanup();
       setIsConnecting(false);
-      toast.error("録音の開始に失敗しました");
+      toast.error(t("recordingFailed"));
     }
   };
 
@@ -362,7 +366,7 @@ export default function TalkPage() {
         body: JSON.stringify({ action: "pause" }),
       });
       setIsPaused(true);
-      toast.info("録音を一時停止しました");
+      toast.info(t("recordingPaused"));
     } catch (error) {
       console.error("Error pausing:", error);
     }
@@ -412,7 +416,7 @@ export default function TalkPage() {
         body: JSON.stringify({ action: "resume" }),
       });
       setIsPaused(false);
-      toast.info("録音を再開しました");
+      toast.info(t("recordingResumed"));
     } catch (error) {
       console.error("Error resuming:", error);
     }
@@ -487,7 +491,7 @@ export default function TalkPage() {
         setTalk(data.talk);
         setIsRecording(false);
         setInterimText("");
-        toast.success("会話を終了しました。サマリーを生成中...");
+        toast.success(t("recordingEndedMessage"));
         // サマリー画面へ遷移
         router.push(`/talks/${talkId}/summary`);
       } else if (res.status === 400) {
@@ -497,7 +501,7 @@ export default function TalkPage() {
       }
     } catch (error) {
       console.error("Error stopping:", error);
-      toast.error("会話の終了に失敗しました");
+      toast.error(t("endingFailed"));
     } finally {
       isStoppingRef.current = false;
     }
@@ -520,7 +524,7 @@ export default function TalkPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        <Header t={t} tt={tt} tc={tc} />
         <main className="container mx-auto px-4 py-8">
           <div className="animate-pulse space-y-4">
             <div className="h-8 w-48 bg-muted rounded" />
@@ -537,7 +541,7 @@ export default function TalkPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+      <Header t={t} tt={tt} tc={tc} />
 
       <main className="flex-1 container mx-auto px-4 py-4 flex flex-col">
         {/* Recording Controls */}
@@ -547,14 +551,14 @@ export default function TalkPage() {
               <div className="flex items-center gap-4">
                 {talk.status === "completed" ? (
                   <span className="text-muted-foreground">
-                    録音終了 • {talk.duration_minutes}分
+                    {t("recordingEnded")} • {talk.duration_minutes}{tc("minute")}
                   </span>
                 ) : isRecording ? (
                   <>
                     <div className={`w-3 h-3 rounded-full ${isPaused ? "bg-yellow-500" : "bg-red-500 animate-pulse"}`} />
                     <span className="font-mono text-2xl">{formatTime(elapsedTime)}</span>
                     <span className="text-sm text-muted-foreground">
-                      {isPaused ? "一時停止中" : "録音中"}
+                      {isPaused ? t("paused") : t("recording")}
                     </span>
                   </>
                 ) : (
@@ -562,7 +566,7 @@ export default function TalkPage() {
                     <div className="w-3 h-3 rounded-full bg-gray-400" />
                     <span className="font-mono text-2xl">{formatTime(elapsedTime)}</span>
                     <span className="text-sm text-muted-foreground">
-                      {isConnecting ? "接続中..." : "録音待機中"}
+                      {isConnecting ? tc("loading") : t("standby")}
                     </span>
                   </>
                 )}
@@ -571,17 +575,17 @@ export default function TalkPage() {
               <div className="flex items-center gap-2">
                 {talk.status === "completed" ? null : !isRecording ? (
                   <Button onClick={startRecording} disabled={isConnecting}>
-                    {isConnecting ? "接続中..." : "録音を開始"}
+                    {isConnecting ? tc("loading") : t("startRecording")}
                   </Button>
                 ) : isPaused ? (
                   <>
-                    <Button onClick={resumeRecording}>再開</Button>
-                    <Button variant="destructive" onClick={stopRecording}>終了</Button>
+                    <Button onClick={resumeRecording}>{t("resume")}</Button>
+                    <Button variant="destructive" onClick={stopRecording}>{t("endButton")}</Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="outline" onClick={pauseRecording}>一時停止</Button>
-                    <Button variant="destructive" onClick={stopRecording}>終了</Button>
+                    <Button variant="outline" onClick={pauseRecording}>{t("pause")}</Button>
+                    <Button variant="destructive" onClick={stopRecording}>{t("endButton")}</Button>
                   </>
                 )}
               </div>
@@ -592,15 +596,15 @@ export default function TalkPage() {
         {/* Messages */}
         <Card className="flex-1 flex flex-col min-h-0">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">会話内容</CardTitle>
+            <CardTitle className="text-lg">{t("conversationContent")}</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto">
             <div className="space-y-4">
               {messages.length === 0 && !interimText && (
                 <p className="text-center text-muted-foreground py-8">
                   {isRecording
-                    ? "話し始めると、ここに文字起こしが表示されます..."
-                    : "会話内容がありません"}
+                    ? t("transcriptionWillAppear")
+                    : t("noContent")}
                 </p>
               )}
 
@@ -648,7 +652,7 @@ export default function TalkPage() {
   );
 }
 
-function Header() {
+function Header({ t, tt, tc }: { t: ReturnType<typeof useTranslations>; tt: ReturnType<typeof useTranslations>; tc: ReturnType<typeof useTranslations> }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
@@ -656,10 +660,10 @@ function Header() {
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6"/>
           </svg>
-          <span>会話一覧へ戻る</span>
+          <span>{tt("backToList")}</span>
         </Link>
         <Link href="/dashboard" className="text-xl font-bold text-primary">
-          Aibond
+          {tc("appName")}
         </Link>
       </div>
     </header>

@@ -85,7 +85,34 @@ export async function POST(request: NextRequest) {
       .map((t) => t.summary)
       .filter((s): s is string => !!s);
 
-    console.log("[AI Chat Stream] Generating response with", recentSummaries.length, "summaries as context");
+    // 自分の取説を取得
+    const { data: userManualItems } = await supabase
+      .from("manual_items")
+      .select("question, answer, category")
+      .eq("user_id", user.id)
+      .eq("target_user_id", user.id);
+
+    // パートナーの取説を取得（パートナーがいる場合）
+    let partnerManualItems: Array<{ question: string; answer: string; category: string }> = [];
+    const { data: partnership } = await supabase
+      .from("partnerships")
+      .select("user1_id, user2_id")
+      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+      .eq("status", "active")
+      .single();
+
+    if (partnership) {
+      const partnerId = partnership.user1_id === user.id ? partnership.user2_id : partnership.user1_id;
+      const { data: partnerItems } = await supabase
+        .from("manual_items")
+        .select("question, answer, category")
+        .eq("user_id", user.id)
+        .eq("target_user_id", partnerId);
+
+      partnerManualItems = partnerItems || [];
+    }
+
+    console.log("[AI Chat Stream] Generating response with", recentSummaries.length, "summaries,", userManualItems?.length || 0, "user manual items, and", partnerManualItems.length, "partner manual items");
 
     // タイトルを生成（最初のメッセージから）
     const title =
@@ -133,7 +160,9 @@ export async function POST(request: NextRequest) {
           const generator = generateAIChatResponseStream(
             message.trim(),
             chatHistory.slice(0, -1), // 最新のユーザーメッセージを除く履歴
-            recentSummaries
+            recentSummaries,
+            userManualItems || [],
+            partnerManualItems
           );
 
           for await (const chunk of generator) {

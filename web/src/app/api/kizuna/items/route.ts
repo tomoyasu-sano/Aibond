@@ -22,15 +22,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { topic_id, type, content, assignee, review_date, review_period } = body;
+    const { topic_id, type, content, assignee, review_date, review_period, parent_item_id } = body;
 
     // バリデーション
     if (!topic_id) {
       return NextResponse.json({ error: "topic_id is required" }, { status: 400 });
     }
 
-    if (!type || !["promise", "request", "my_feeling", "partner_feeling", "memo"].includes(type)) {
+    if (!type || !["promise", "request", "discussion", "my_feeling", "partner_feeling", "memo"].includes(type)) {
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+    }
+
+    // 子カード（気持ち・メモ）の場合は親カードが必須
+    const isChildType = ["my_feeling", "partner_feeling", "memo"].includes(type);
+    if (isChildType && !parent_item_id) {
+      return NextResponse.json({ error: "parent_item_id is required for feeling/memo types" }, { status: 400 });
     }
 
     if (!content || content.trim().length === 0) {
@@ -54,6 +60,7 @@ export async function POST(request: NextRequest) {
         assignee: (type === "promise" || type === "request") ? (assignee || "self") : null,
         review_date: review_date || null,
         review_period: review_period || null,
+        parent_item_id: isChildType ? parent_item_id : null,
         created_by: user.id,
       })
       .select()

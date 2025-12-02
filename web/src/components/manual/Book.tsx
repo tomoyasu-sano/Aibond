@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import {
@@ -24,12 +25,38 @@ export function Book({ item, onEdit, onDelete }: BookProps) {
   const IconComponent = category.icon;
   const bookColor = item.color || category.defaultColor;
 
-  // ランダムな傾きと高さのバリエーション
-  const randomRotation = Math.random() * 3 - 1.5; // -1.5deg ~ 1.5deg
-  const randomHeight = 140 + Math.random() * 60; // 140px ~ 200px
+  // ランダムな高さのバリエーション（控えめに）
+  const randomHeight = 120 + Math.random() * 25; // 120px ~ 145px
 
-  // 色を暗くする関数（背表紙の側面用）
-  const darkenColor = (color: string, amount: number = 30) => {
+  // ホバー状態とツールチップ位置を追跡
+  const [isHovered, setIsHovered] = React.useState(false);
+  const [tooltipPosition, setTooltipPosition] = React.useState({ top: 0, left: 0 });
+
+  // マウス位置でツールチップを表示
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setTooltipPosition({
+      top: e.clientY,
+      left: e.clientX + 20, // マウスカーソルの右側20pxに表示
+    });
+  };
+
+  // スマホ対応：タップでツールチップを表示
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setTooltipPosition({
+      top: touch.clientY,
+      left: touch.clientX + 20,
+    });
+    setIsHovered(true);
+  };
+
+  const handleTouchEnd = () => {
+    // 2秒後に自動的に閉じる
+    setTimeout(() => setIsHovered(false), 2000);
+  };
+
+  // 色を少し暗くする（柔らかめ）
+  const darkenColor = (color: string, amount: number = 20) => {
     const hex = color.replace("#", "");
     const num = parseInt(hex, 16);
     const r = Math.max(0, (num >> 16) - amount);
@@ -38,49 +65,55 @@ export function Book({ item, onEdit, onDelete }: BookProps) {
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
   };
 
-  const darkColor = darkenColor(bookColor);
-  const veryDarkColor = darkenColor(bookColor, 50);
+  const darkColor = darkenColor(bookColor, 15);
 
   return (
+    <>
     <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      initial={{ opacity: 0, scale: 0.95, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: 20 }}
-      whileHover={{ scale: 1.03, y: -5, rotateY: -5 }}
-      transition={{ duration: 0.2 }}
-      className="relative group"
-      style={{
-        height: `${randomHeight}px`,
-        perspective: "1000px",
+      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+      whileHover={{ scale: 1.02, y: -3 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      onMouseEnter={(e) => {
+        setIsHovered(true);
+        handleMouseMove(e);
       }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="relative group z-50"
+      style={{ height: `${randomHeight}px` }}
     >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <div
             className="relative h-full cursor-pointer"
-            style={{
-              width: "48px",
-              transformStyle: "preserve-3d",
-              transform: `rotateZ(${randomRotation}deg)`,
-            }}
+            style={{ width: "42px" }}
           >
             {/* 本体（背表紙） */}
             <div
-              className="absolute inset-0 rounded-sm flex flex-col items-center justify-between py-3 px-1 transition-all duration-200"
+              className="absolute inset-0 rounded-lg flex flex-col items-center justify-between py-2 px-1 transition-all duration-200"
               style={{
-                background: `linear-gradient(to right, ${darkColor} 0%, ${bookColor} 10%, ${bookColor} 90%, ${veryDarkColor} 100%)`,
+                background: `linear-gradient(to right,
+                  ${darkColor} 0%,
+                  ${bookColor} 8%,
+                  ${bookColor} 92%,
+                  ${darkColor} 100%)`,
                 boxShadow: `
-                  2px 4px 8px rgba(0, 0, 0, 0.15),
-                  inset -2px 0 4px rgba(0, 0, 0, 0.1),
-                  inset 2px 0 4px rgba(255, 255, 255, 0.1)
+                  0 2px 6px rgba(0, 0, 0, 0.08),
+                  0 4px 12px rgba(0, 0, 0, 0.05),
+                  inset -1px 0 3px rgba(0, 0, 0, 0.08),
+                  inset 1px 0 3px rgba(255, 255, 255, 0.15)
                 `,
-                borderLeft: `1px solid ${veryDarkColor}`,
-                borderRight: `1px solid ${darkColor}`,
+                borderLeft: `1px solid ${darkColor}20`,
+                borderRight: `1px solid ${bookColor}40`,
               }}
             >
               {/* アイコン（上部） */}
-              <div className="flex-shrink-0 opacity-70">
-                <IconComponent size={18} strokeWidth={2} className="text-gray-700 dark:text-gray-300" />
+              <div className="flex-shrink-0 opacity-75">
+                <IconComponent size={14} strokeWidth={2.5} className="text-slate-600 dark:text-slate-300" />
               </div>
 
               {/* タイトル（縦書き） */}
@@ -91,29 +124,20 @@ export function Book({ item, onEdit, onDelete }: BookProps) {
                   textOrientation: "upright",
                 }}
               >
-                <span className="text-xs font-semibold text-gray-800 dark:text-gray-100 tracking-tight line-clamp-4">
+                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-100 tracking-tight line-clamp-3">
                   {item.question}
                 </span>
               </div>
 
               {/* 装飾ライン */}
-              <div className="flex-shrink-0 w-6 h-0.5 bg-gray-700/20 dark:bg-gray-300/20 rounded-full" />
+              <div className="flex-shrink-0 w-4 h-0.5 bg-slate-600/15 dark:bg-slate-300/15 rounded-full" />
             </div>
 
-            {/* 背表紙の右側面（3D効果） */}
+            {/* ホバー時の柔らかいグロー */}
             <div
-              className="absolute top-0 bottom-0 right-0 w-1 rounded-r-sm"
+              className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
               style={{
-                background: `linear-gradient(to bottom, ${veryDarkColor} 0%, ${darkColor} 50%, ${veryDarkColor} 100%)`,
-                transform: "translateX(1px)",
-              }}
-            />
-
-            {/* ホバー時のグロー効果 */}
-            <div
-              className="absolute inset-0 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-              style={{
-                boxShadow: `0 0 20px ${bookColor}80`,
+                boxShadow: `0 0 16px ${bookColor}60`,
               }}
             />
           </div>
@@ -134,17 +158,40 @@ export function Book({ item, onEdit, onDelete }: BookProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* ツールチップ（ホバー時に質問と回答を表示） */}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50 animate-in fade-in-0 zoom-in-95 duration-200">
-        <div className="bg-popover text-popover-foreground p-4 rounded-lg shadow-xl border max-w-xs">
-          <div className="font-semibold mb-2 text-sm">{item.question}</div>
-          {item.answer && (
-            <div className="text-xs text-muted-foreground leading-relaxed">
-              {item.answer}
-            </div>
-          )}
-        </div>
-      </div>
     </motion.div>
+
+      {/* ツールチップ（ホバー時に質問と回答を表示） - fixed位置で本の右側に表示 */}
+      {isHovered && (
+        <div
+          className="fixed pointer-events-none"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+            transform: 'translateY(-50%)',
+            writingMode: 'horizontal-tb',
+            textOrientation: 'mixed',
+            zIndex: 999999,
+          }}
+        >
+          <div
+            className="bg-amber-50 dark:bg-amber-900/20 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg shadow-lg border border-amber-200/60 dark:border-amber-800/60 max-w-xs animate-in fade-in-0 zoom-in-95 duration-200"
+            style={{
+              writingMode: 'horizontal-tb',
+              direction: 'ltr',
+            }}
+          >
+            {item.answer ? (
+              <div className="text-sm leading-relaxed break-words">
+                {item.answer}
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500 dark:text-slate-400 italic">
+                {t("noAnswer")}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

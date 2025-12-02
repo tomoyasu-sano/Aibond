@@ -5,7 +5,7 @@
 CREATE TABLE public.manual_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  partnership_id UUID REFERENCES partnerships(id) ON DELETE SET NULL,
+  partnership_id UUID, -- Partnership ID (no foreign key constraint yet)
   target_user_id UUID NOT NULL REFERENCES auth.users(id), -- Who this manual is about (self or partner)
 
   category TEXT NOT NULL, -- "basic", "personality", "hobbies", "communication", "lifestyle", "other"
@@ -54,52 +54,14 @@ CREATE POLICY "Users can delete their own manual items"
   FOR DELETE
   USING (auth.uid() = user_id);
 
--- RLS Policy: Users can view partner's manual items (if connected via partnership)
-CREATE POLICY "Users can view partner's manual items"
+-- RLS Policy: Users can view partner's manual items (where they are target_user)
+CREATE POLICY "Users can view manual items about themselves"
   ON public.manual_items
   FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM partnerships
-      WHERE partnerships.id = manual_items.partnership_id
-      AND (partnerships.user1_id = auth.uid() OR partnerships.user2_id = auth.uid())
-      AND partnerships.status = 'active'
-    )
-  );
+  USING (auth.uid() = target_user_id);
 
--- Update handle_new_user() function to create initial manual items
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-DECLARE
-  current_period TEXT;
-BEGIN
-  -- Current period (YYYY-MM)
-  current_period := to_char(NOW(), 'YYYY-MM');
-
-  -- Create user_profiles
-  INSERT INTO public.user_profiles (id, name, language)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'name', 'ユーザー'), 'ja');
-
-  -- Create subscriptions (initialize with Free plan)
-  INSERT INTO public.subscriptions (user_id, plan, status)
-  VALUES (NEW.id, 'free', 'active');
-
-  -- Create usage (for current month)
-  INSERT INTO public.usage (user_id, period, minutes_used, minutes_limit)
-  VALUES (NEW.id, current_period, 0, 120); -- Free: 2 hours = 120 minutes
-
-  -- Create manual_items (5 fixed questions - user's own manual)
-  INSERT INTO public.manual_items (user_id, target_user_id, category, question, answer, is_fixed)
-  VALUES
-    (NEW.id, NEW.id, 'basic', '好きな色', '', true),
-    (NEW.id, NEW.id, 'basic', '好きな音楽・アーティスト', '', true),
-    (NEW.id, NEW.id, 'basic', '嫌いな食べ物', '', true),
-    (NEW.id, NEW.id, 'basic', '大切にしている価値観', '', true),
-    (NEW.id, NEW.id, 'basic', '絶対に許せないこと', '', true);
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Note: handle_new_user() function is NOT modified here to avoid conflicts
+-- Manual items for new users should be created separately if needed
 
 -- Helper function to initialize partner manual items when partnership is established
 CREATE OR REPLACE FUNCTION public.initialize_partner_manual_items(

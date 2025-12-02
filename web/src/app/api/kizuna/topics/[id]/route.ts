@@ -38,8 +38,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Topic not found" }, { status: 404 });
   }
 
-  // 項目を取得（評価付き）
-  const { data: items, error: itemsError } = await supabase
+  // 親カード（promise, request, discussion）を取得
+  const { data: parentItems, error: parentError } = await supabase
     .from("kizuna_items")
     .select(
       `
@@ -49,16 +49,51 @@ export async function GET(request: NextRequest, context: RouteContext) {
     `
     )
     .eq("topic_id", id)
+    .in("type", ["promise", "request", "discussion"])
+    .is("parent_item_id", null)
+    .order("created_at", { ascending: false });
+
+  if (parentError) {
+    console.error("[Kizuna Topic Detail] Error fetching parent items:", parentError);
+    return NextResponse.json({ error: parentError.message }, { status: 500 });
+  }
+
+  // 子カード（my_feeling, partner_feeling, memo）を取得
+  const { data: childItems, error: childError } = await supabase
+    .from("kizuna_items")
+    .select("*")
+    .eq("topic_id", id)
+    .in("type", ["my_feeling", "partner_feeling", "memo"])
+    .not("parent_item_id", "is", null)
     .order("created_at", { ascending: true });
 
-  if (itemsError) {
-    console.error("[Kizuna Topic Detail] Error fetching items:", itemsError);
-    return NextResponse.json({ error: itemsError.message }, { status: 500 });
+  if (childError) {
+    console.error("[Kizuna Topic Detail] Error fetching child items:", childError);
+    return NextResponse.json({ error: childError.message }, { status: 500 });
   }
+
+  // 親カードに子カードを紐付け
+  const itemsWithChildren = (parentItems || []).map((parent) => ({
+    ...parent,
+    children: (childItems || []).filter((child) => child.parent_item_id === parent.id),
+  }));
+
+  // 親カードに紐付いていない子カード（未分類）
+  const orphanChildren = (childItems || []).filter(
+    (child) => !parentItems?.some((parent) => parent.id === child.parent_item_id)
+  );
+
+  // 旧形式との互換性のため、フラットなitemsも返す
+  const allItems = [
+    ...(parentItems || []),
+    ...(childItems || []),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return NextResponse.json({
     topic,
-    items: items || [],
+    items: allItems, // 旧形式（フラット）
+    parentItems: itemsWithChildren, // 新形式（親子構造）
+    orphanChildren, // 未分類の子カード
   });
 }
 

@@ -62,6 +62,11 @@ export function Bookshelf({
   const currentLevel = getCurrentLevel(items.length);
   const itemsToNext = getItemsToNextLevel(items.length);
 
+  // 進捗率の計算
+  const progressPercent = itemsToNext !== null
+    ? Math.min(100, ((currentLevel.maxItems - itemsToNext) / (currentLevel.maxItems - currentLevel.minItems + 1)) * 100)
+    : 100;
+
   const handleEdit = (item: ManualItem) => {
     setEditingItem(item);
     setIsModalOpen(true);
@@ -75,7 +80,7 @@ export function Bookshelf({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <div className="text-muted-foreground">読み込み中...</div>
+        <div className="text-slate-500">読み込み中...</div>
       </div>
     );
   }
@@ -83,42 +88,44 @@ export function Bookshelf({
   return (
     <div className="space-y-6">
       {/* タイトル & レベル表示 */}
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold">{title}</h2>
-        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-          <div className="font-medium">
-            {currentLevel.emoji} {currentLevel.title}
+      <div className="space-y-3">
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">{title}</h2>
+
+        {/* 柔らかい進捗バー */}
+        <div className="flex items-center gap-3 text-sm">
+          <span className="font-medium text-slate-700 dark:text-slate-300">
+            {currentLevel.emoji} Lv.{currentLevel.level}
+          </span>
+          <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden max-w-xs shadow-inner">
+            <div
+              className="h-full bg-gradient-to-r from-slate-400 to-slate-500 dark:from-slate-500 dark:to-slate-600 rounded-full transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
-          <div>|</div>
-          <div>
+          <span className="text-xs text-slate-600 dark:text-slate-400">
             {items.length} {t("items")}
-          </div>
-          {itemsToNext !== null && (
-            <>
-              <div>|</div>
-              <div>{t("itemsToNextLevel", { count: itemsToNext })}</div>
-            </>
-          )}
+            {itemsToNext !== null && ` • あと${itemsToNext}冊`}
+          </span>
         </div>
       </div>
 
       {/* 本棚 */}
-      <Card className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border-2 border-amber-200 dark:border-amber-800">
+      <Card className="p-6 bg-gradient-to-br from-amber-50/70 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/10 border border-amber-200/60 dark:border-amber-800/60 rounded-xl shadow-sm">
         {items.length === 0 ? (
-          /* 空の状態 */
+          // 空の状態
           <div className="flex flex-col items-center justify-center py-16 space-y-4">
-            <div className="text-7xl mb-2">📚</div>
-            <div className="text-xl font-medium text-center">{t("emptyState")}</div>
-            <div className="text-sm text-muted-foreground text-center max-w-md">
+            <div className="text-6xl mb-2">📚</div>
+            <div className="text-xl font-medium text-slate-800 dark:text-slate-200">{t("emptyState")}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md">
               {t("emptyDescription")}
             </div>
-            <Button onClick={() => setIsModalOpen(true)} className="mt-4 gap-2">
+            <Button onClick={() => setIsModalOpen(true)} className="mt-4 gap-2 rounded-lg">
               <Plus size={18} />
               {t("addItem")}
             </Button>
           </div>
         ) : (
-          /* カテゴリごとの棚 */
+          // カテゴリごとの棚
           <div className="space-y-8">
             {Object.entries(MANUAL_CATEGORIES).map(([key, category]) => {
               const categoryItems = itemsByCategory[key as ManualCategory];
@@ -129,79 +136,93 @@ export function Bookshelf({
               return (
                 <div key={key} className="relative">
                   {/* カテゴリラベル */}
-                  <div className="flex items-center gap-2 mb-3 pl-2">
-                    <CategoryIcon size={20} strokeWidth={2} className="text-gray-700 dark:text-gray-300" />
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">
+                  <div className="relative flex items-center gap-2 mb-4 pl-2">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800">
+                      <CategoryIcon size={16} strokeWidth={2} className="text-slate-600 dark:text-slate-400" />
+                    </div>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
                       {t(`category${key.charAt(0).toUpperCase() + key.slice(1)}` as any)}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       ({categoryItems.length})
                     </span>
                   </div>
 
                   {/* 棚板 */}
                   <div className="relative">
-                    {/* 本を並べる領域 */}
-                    <div className="relative flex flex-wrap gap-2 items-end pb-2 px-4 min-h-[180px]">
+                    {/* 本を並べる領域（横スクロール） */}
+                    <div className="relative flex gap-3 items-end pb-2 px-4 min-h-[145px] overflow-x-auto overflow-y-visible scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
                       {categoryItems.map((item) => (
-                        <Book
-                          key={item.id}
-                          item={item}
-                          onEdit={() => handleEdit(item)}
-                          onDelete={() => onItemDeleted(item.id, targetUserId)}
-                        />
+                        <div key={item.id} className="relative flex-shrink-0">
+                          <Book
+                            item={item}
+                            onEdit={() => handleEdit(item)}
+                            onDelete={() => onItemDeleted(item.id, targetUserId)}
+                          />
+                          {/* 本の下の柔らかい影 */}
+                          <div
+                            className="absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-[85%] h-1.5 rounded-full blur-sm"
+                            style={{
+                              background: "radial-gradient(ellipse, rgba(0, 0, 0, 0.15) 0%, transparent 70%)",
+                            }}
+                          />
+                        </div>
                       ))}
                     </div>
 
-                    {/* 棚板本体（木の板） */}
-                    <div className="relative h-4 rounded-md overflow-hidden shadow-md">
-                      {/* 木目調のグラデーション */}
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          background: `linear-gradient(to bottom,
-                            #8B4513 0%,
-                            #A0522D 20%,
-                            #8B4513 40%,
-                            #654321 60%,
-                            #8B4513 80%,
-                            #654321 100%)`,
-                        }}
-                      />
-                      {/* 木目のテクスチャ（縦線） */}
-                      <div
-                        className="absolute inset-0 opacity-20"
-                        style={{
-                          backgroundImage: `repeating-linear-gradient(
-                            90deg,
-                            transparent,
-                            transparent 10px,
-                            rgba(0, 0, 0, 0.1) 10px,
-                            rgba(0, 0, 0, 0.1) 11px
-                          )`,
-                        }}
-                      />
-                      {/* 上部のハイライト */}
-                      <div
-                        className="absolute top-0 left-0 right-0 h-1"
-                        style={{
-                          background: "linear-gradient(to bottom, rgba(255, 255, 255, 0.3), transparent)",
-                        }}
-                      />
-                      {/* 下部の影 */}
-                      <div
-                        className="absolute bottom-0 left-0 right-0 h-1"
-                        style={{
-                          background: "linear-gradient(to top, rgba(0, 0, 0, 0.3), transparent)",
-                        }}
-                      />
+                    {/* 棚板全体（柔らかいデザイン） */}
+                    <div className="relative">
+                      {/* 奥の薄い影 */}
+                      <div className="relative h-1.5 overflow-hidden rounded-t-sm">
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: `linear-gradient(to bottom,
+                              #8B7355 0%,
+                              #9A8169 100%)`,
+                            opacity: 0.5,
+                          }}
+                        />
+                      </div>
+
+                      {/* 手前の縁（明るく柔らかく） */}
+                      <div className="relative h-5 rounded-b-lg overflow-hidden shadow-md">
+                        {/* 木目調のグラデーション（明るめ・柔らかめ） */}
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: `linear-gradient(to bottom,
+                              #E6D5C3 0%,
+                              #D2C4B0 25%,
+                              #C9BA9E 50%,
+                              #BFB092 75%,
+                              #B5A888 100%)`,
+                          }}
+                        />
+
+                        {/* 上部の柔らかいハイライト */}
+                        <div
+                          className="absolute top-0 left-0 right-0 h-2"
+                          style={{
+                            background: "linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent)",
+                          }}
+                        />
+
+                        {/* 下部の柔らかい影 */}
+                        <div
+                          className="absolute bottom-0 left-0 right-0 h-1.5"
+                          style={{
+                            background: "linear-gradient(to top, rgba(0, 0, 0, 0.15), transparent)",
+                          }}
+                        />
+                      </div>
                     </div>
 
-                    {/* 棚の下の影 */}
+                    {/* 棚の下の柔らかい影 */}
                     <div
-                      className="absolute -bottom-2 left-0 right-0 h-2 blur-sm opacity-20"
+                      className="absolute -bottom-2 left-0 right-0 h-2 blur-sm opacity-15"
                       style={{
-                        background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.3), transparent)",
+                        background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0%, transparent)",
                       }}
                     />
                   </div>
@@ -210,11 +231,11 @@ export function Bookshelf({
             })}
 
             {/* 本を追加ボタン */}
-            <div className="flex justify-center pt-6">
+            <div className="flex justify-center pt-4">
               <Button
                 onClick={() => setIsModalOpen(true)}
                 variant="outline"
-                className="border-dashed border-2 gap-2 hover:bg-amber-100 dark:hover:bg-amber-900/20"
+                className="border-dashed border-2 gap-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg"
               >
                 <Plus size={18} />
                 {t("addItem")}

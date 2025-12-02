@@ -7,6 +7,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, STRIPE_PLANS, type StripePlanKey } from "@/lib/stripe/client";
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+// Stripeがサポートする言語コードへのマッピング
+function getStripeLocale(locale: string): 'ja' | 'en' | 'auto' {
+  if (locale === 'ja') return 'ja';
+  if (locale === 'en') return 'en';
+  return 'auto';
+}
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -22,7 +30,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { plan } = body as { plan: StripePlanKey };
+    const { plan, locale: clientLocale } = body as { plan: StripePlanKey; locale?: string };
+
+    // Cookie から言語設定を取得（フォールバック）
+    const cookieStore = await cookies();
+    const cookieLocale = cookieStore.get('NEXT_LOCALE')?.value;
+    const locale = getStripeLocale(clientLocale || cookieLocale || 'ja');
 
     if (!plan || !STRIPE_PLANS[plan]) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
@@ -66,6 +79,7 @@ export async function POST(request: NextRequest) {
       customer: customerId,
       mode: "subscription",
       payment_method_types: ["card"],
+      locale: locale,
       line_items: [
         {
           price: planConfig.priceId,

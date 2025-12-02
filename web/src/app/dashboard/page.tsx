@@ -136,11 +136,57 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/kizuna">
-                <Button variant="outline" className="w-full">
-                  {t("openBondNote")}
-                </Button>
-              </Link>
+              {partnership ? (
+                <>
+                  {await (async () => {
+                    const today = new Date();
+                    const sevenDaysLater = new Date(today);
+                    sevenDaysLater.setDate(today.getDate() + 7);
+                    const sevenDaysLaterStr = sevenDaysLater.toISOString().split("T")[0];
+
+                    const { count } = await supabase
+                      .from("kizuna_items")
+                      .select("id, topic:kizuna_topics!inner(partnership_id)", { count: "exact", head: true })
+                      .eq("status", "active")
+                      .eq("kizuna_topics.partnership_id", partnership.id)
+                      .not("review_date", "is", null)
+                      .lte("review_date", sevenDaysLaterStr);
+
+                    const reviewDueCount = count || 0;
+
+                    if (reviewDueCount > 0) {
+                      return (
+                        <div className="mb-4 px-3 py-2 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                          <div className="flex items-center gap-2 text-sm text-orange-800 dark:text-orange-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10"/>
+                              <path d="M12 6v6l4 2"/>
+                            </svg>
+                            <span className="font-medium">見直し時期が近い項目: {reviewDueCount}件</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <Link href="/kizuna">
+                    <Button variant="outline" className="w-full">
+                      {t("openBondNote")}
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    パートナーと連携すると利用できます
+                  </p>
+                  <Link href="/partners">
+                    <Button variant="outline" size="sm">
+                      パートナーを招待
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
 

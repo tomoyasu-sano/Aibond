@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import {
   Dialog,
   DialogContent,
@@ -14,13 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { RatingIcon } from "@/components/kizuna/RatingIcon";
-import {
-  TopicStatusIcon,
-  ReviewDueIcon,
-  HistoryIcon,
-  EmptyStateIcon,
-} from "@/components/kizuna/KizunaIcons";
+import { EmptyStateIcon, TopicStatusIcon, ReviewDueIcon } from "@/components/kizuna/KizunaIcons";
 
 interface Topic {
   id: string;
@@ -28,44 +24,58 @@ interface Topic {
   status: "active" | "resolved";
   created_at: string;
   updated_at: string;
-  resolved_at: string | null;
   item_count: number;
-  latest_rating: "good" | "neutral" | "bad" | null;
   review_due_count: number;
 }
 
+interface ReviewAlert {
+  id: string;
+  type: string;
+  content: string;
+  review_date: string;
+  topic_id: string;
+  topic_title: string;
+  days_remaining: number;
+  urgency: "overdue" | "urgent" | "soon";
+}
 
 export default function KizunaPage() {
   const router = useRouter();
+  const t = useTranslations("kizuna");
+  const tc = useTranslations("common");
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [reviewAlerts, setReviewAlerts] = useState<ReviewAlert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "active" | "resolved">("active");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    fetchTopics();
-  }, [filter]);
+    fetchData();
+  }, []);
 
-  const fetchTopics = async () => {
+  const fetchData = async () => {
     try {
-      let url = "/api/kizuna/topics";
-      if (filter !== "all") {
-        url += `?status=${filter}`;
-      }
+      const [topicsRes, alertsRes] = await Promise.all([
+        fetch("/api/kizuna/topics"),
+        fetch("/api/kizuna/review-alerts"),
+      ]);
 
-      const res = await fetch(url);
-      if (res.status === 401) {
+      if (topicsRes.status === 401) {
         router.push("/login");
         return;
       }
 
-      const data = await res.json();
-      setTopics(data.topics || []);
+      const [topicsData, alertsData] = await Promise.all([
+        topicsRes.json(),
+        alertsRes.json(),
+      ]);
+
+      setTopics(topicsData.topics || []);
+      setReviewAlerts(alertsData.items || []);
     } catch (error) {
-      console.error("Error fetching topics:", error);
-      toast.error("テーマの取得に失敗しました");
+      console.error("Error fetching data:", error);
+      toast.error(t("fetchFailed"));
     } finally {
       setLoading(false);
     }
@@ -84,18 +94,15 @@ export default function KizunaPage() {
 
       if (res.ok) {
         const data = await res.json();
-        toast.success("テーマを作成しました");
-        setIsDialogOpen(false);
-        setNewTitle("");
-        // 新しいテーマの詳細ページに遷移
+        toast.success(t("themeCreatedSuccess"));
         router.push(`/kizuna/${data.topic.id}`);
       } else {
         const error = await res.json();
-        toast.error(error.error || "テーマの作成に失敗しました");
+        toast.error(error.error || t("createFailed"));
       }
     } catch (error) {
       console.error("Error creating topic:", error);
-      toast.error("テーマの作成に失敗しました");
+      toast.error(t("createFailed"));
     } finally {
       setIsCreating(false);
     }
@@ -109,101 +116,271 @@ export default function KizunaPage() {
     });
   };
 
+  const getUrgencyConfig = (urgency: string) => {
+    switch (urgency) {
+      case "overdue":
+        return {
+          color: "bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800",
+          badge: "bg-orange-600 text-white",
+        };
+      case "urgent":
+        return {
+          color: "bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800",
+          badge: "bg-orange-500 text-white",
+        };
+      default:
+        return {
+          color: "bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800",
+          badge: "bg-orange-400 text-white",
+        };
+    }
+  };
+
+  const getDaysText = (days: number) => {
+    if (days < 0) {
+      return `${Math.abs(days)}日超過`;
+    } else if (days === 0) {
+      return "今日";
+    } else {
+      return `あと${days}日`;
+    }
+  };
+
+  // ローディング中
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+          <div className="container mx-auto flex h-14 items-center justify-between px-4">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              <span>{t("backToDashboard")}</span>
+            </Link>
+            <LanguageSwitcher />
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
+            <p className="text-muted-foreground">{tc("loading")}</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   const activeTopics = topics.filter((t) => t.status === "active");
   const resolvedTopics = topics.filter((t) => t.status === "resolved");
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onAddClick={() => setIsDialogOpen(true)} />
-
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-2">絆ノート</h1>
-          <p className="text-muted-foreground">
-            二人の関係を良くするための約束・習慣・要望を記録
-          </p>
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+        <div className="container mx-auto flex h-14 items-center justify-between px-4">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            <span>{t("backToDashboard")}</span>
+          </Link>
+          <LanguageSwitcher />
         </div>
+      </header>
 
-        {/* フィルター */}
-        <div className="flex gap-2 mb-6">
-          <Button
-            variant={filter === "active" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("active")}
-          >
-            継続中
-          </Button>
-          <Button
-            variant={filter === "resolved" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("resolved")}
-          >
-            解決済み
-          </Button>
-          <Button
-            variant={filter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("all")}
-          >
-            すべて
-          </Button>
-        </div>
-
-        {/* コンテンツ */}
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-20 bg-muted rounded animate-pulse" />
-            ))}
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-1">{t("pageTitle")}</h1>
+            <p className="text-muted-foreground text-sm">{t("pageDescription")}</p>
           </div>
-        ) : topics.length === 0 ? (
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-2"
+            >
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+            {t("addTheme")}
+          </Button>
+        </div>
+
+        {/* 見直し時期アラート */}
+        {reviewAlerts.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <ReviewDueIcon size={20} className="text-orange-600" />
+              <h2 className="text-lg font-semibold">見直し時期が近い項目</h2>
+              <span className="px-2 py-0.5 text-xs bg-orange-500 text-white rounded-full">
+                {reviewAlerts.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {reviewAlerts.map((alert) => {
+                const config = getUrgencyConfig(alert.urgency);
+                return (
+                  <Link key={alert.id} href={`/kizuna/${alert.topic_id}`}>
+                    <Card className={`${config.color} border transition-all hover:shadow-md cursor-pointer`}>
+                      <CardContent className="py-3 px-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs text-muted-foreground">
+                                {alert.topic_title}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${config.badge}`}>
+                                {getDaysText(alert.days_remaining)}
+                              </span>
+                            </div>
+                            <p className="text-sm font-medium line-clamp-1">{alert.content}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              見直し時期: {formatDate(alert.review_date)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* テーマ一覧 */}
+        {topics.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <div className="flex justify-center mb-4">
                 <EmptyStateIcon size={56} />
               </div>
-              <p className="text-muted-foreground mb-2">
-                {filter === "resolved"
-                  ? "解決済みのテーマはありません"
-                  : "テーマがありません"}
-              </p>
+              <p className="text-muted-foreground mb-2">{t("noThemes")}</p>
               <p className="text-sm text-muted-foreground mb-4">
-                二人で話し合いたいことや、改善したいことを追加しましょう
+                {t("suggestTheme")}
               </p>
               <Button onClick={() => setIsDialogOpen(true)}>
-                最初のテーマを作成
+                {t("addTheme")}
               </Button>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
-            {/* 継続中 */}
-            {filter !== "resolved" && activeTopics.length > 0 && (
+            {/* 継続中のテーマ */}
+            {activeTopics.length > 0 && (
               <div>
-                {filter === "all" && (
-                  <h2 className="text-sm font-medium text-muted-foreground mb-3">
-                    継続中のテーマ
-                  </h2>
-                )}
-                <div className="space-y-4">
+                <h2 className="text-sm font-semibold text-muted-foreground mb-3 px-1">
+                  継続中のテーマ ({activeTopics.length})
+                </h2>
+                <div className="grid gap-3">
                   {activeTopics.map((topic) => (
-                    <TopicCard key={topic.id} topic={topic} />
+                    <Link key={topic.id} href={`/kizuna/${topic.id}`}>
+                      <Card className="transition-all hover:shadow-md hover:border-primary/50 cursor-pointer">
+                        <CardContent className="py-4 px-5">
+                          <div className="flex items-start gap-3">
+                            <TopicStatusIcon status={topic.status} size={24} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-base">{topic.title}</h3>
+                                {topic.review_due_count > 0 && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 text-xs bg-orange-500 text-white rounded-full">
+                                    <ReviewDueIcon size={12} />
+                                    {topic.review_due_count}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {topic.item_count}件の項目 • {formatDate(topic.updated_at)}更新
+                              </p>
+                            </div>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-muted-foreground flex-shrink-0 mt-1"
+                            >
+                              <path d="m9 18 6-6-6-6" />
+                            </svg>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* 解決済み */}
-            {filter !== "active" && resolvedTopics.length > 0 && (
+            {/* 解決済みのテーマ */}
+            {resolvedTopics.length > 0 && (
               <div>
-                {filter === "all" && (
-                  <h2 className="text-sm font-medium text-muted-foreground mb-3 mt-6">
-                    解決済み
-                  </h2>
-                )}
-                <div className="space-y-4">
+                <h2 className="text-sm font-semibold text-muted-foreground mb-3 px-1">
+                  解決済みのテーマ ({resolvedTopics.length})
+                </h2>
+                <div className="grid gap-3">
                   {resolvedTopics.map((topic) => (
-                    <TopicCard key={topic.id} topic={topic} />
+                    <Link key={topic.id} href={`/kizuna/${topic.id}`}>
+                      <Card className="transition-all hover:shadow-md cursor-pointer opacity-70 hover:opacity-100">
+                        <CardContent className="py-4 px-5">
+                          <div className="flex items-start gap-3">
+                            <TopicStatusIcon status={topic.status} size={24} />
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-base mb-1">{topic.title}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {topic.item_count}件の項目 • {formatDate(topic.updated_at)}更新
+                              </p>
+                            </div>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-muted-foreground flex-shrink-0 mt-1"
+                            >
+                              <path d="m9 18 6-6-6-6" />
+                            </svg>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -216,123 +393,31 @@ export default function KizunaPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>新しいテーマを作成</DialogTitle>
+            <DialogTitle>{t("createNewTheme")}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <Input
-              placeholder="例: スキンシップについて、家事の分担..."
+              placeholder={t("themePlaceholder")}
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                  createTopic();
-                }
-              }}
             />
             <p className="text-xs text-muted-foreground mt-2">
-              二人で話し合いたいこと、改善したいことを入力してください
+              {t("helperText")}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              キャンセル
+              {tc("cancel")}
             </Button>
             <Button
               onClick={createTopic}
               disabled={isCreating || !newTitle.trim()}
             >
-              {isCreating ? "作成中..." : "作成"}
+              {isCreating ? t("creatingButton") : t("createButton")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function TopicCard({ topic }: { topic: Topic }) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("ja-JP", {
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  return (
-    <Link href={`/kizuna/${topic.id}`}>
-      <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-        <CardContent className="py-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <TopicStatusIcon status={topic.status} size={22} />
-                <h3 className="font-medium truncate">{topic.title}</h3>
-              </div>
-              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                <span>更新: {formatDate(topic.updated_at)}</span>
-                {topic.item_count > 0 && <span>項目: {topic.item_count}件</span>}
-                {topic.review_due_count > 0 && (
-                  <span className="flex items-center gap-1 text-orange-600">
-                    <ReviewDueIcon size={14} />
-                    {topic.review_due_count}件
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {topic.latest_rating && (
-                <RatingIcon rating={topic.latest_rating} size="sm" />
-              )}
-              <span
-                className={`text-xs px-2 py-0.5 rounded ${
-                  topic.status === "resolved"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-blue-100 text-blue-700"
-                }`}
-              >
-                {topic.status === "resolved" ? "解決" : "継続中"}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function Header({ onAddClick }: { onAddClick: () => void }) {
-  return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-14 items-center justify-between px-4">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-          <span>ダッシュボード</span>
-        </Link>
-        <div className="flex items-center gap-2">
-          <Link href="/kizuna/history">
-            <Button variant="ghost" size="sm" className="gap-1">
-              <HistoryIcon size={16} />
-              振り返り
-            </Button>
-          </Link>
-          <Button size="sm" onClick={onAddClick}>
-            + 新規
-          </Button>
-        </div>
-      </div>
-    </header>
   );
 }

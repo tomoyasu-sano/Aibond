@@ -125,31 +125,61 @@ ${conversationText}
 }
 
 /**
+ * 取説アイテムの型
+ */
+export interface ManualItem {
+  question: string;
+  answer: string;
+  category: string;
+}
+
+/**
  * AI相談チャット用のプロンプトを構築
  */
 function buildChatPrompt(
   userMessage: string,
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>,
-  recentSummaries: string[]
+  recentSummaries: string[],
+  userManualItems?: ManualItem[],
+  partnerManualItems?: ManualItem[]
 ): string {
-  const systemPrompt = `あなたは国際カップル・パートナーの関係改善をサポートするカウンセラーです。
-ユーザーの過去の会話履歴を元に、建設的で具体的なアドバイスを提供してください。
-相手の文化的背景や言語の違いにも配慮したアドバイスを心がけてください。
-回答は日本語で行ってください。`;
+  const systemPrompt = `あなたはの役割は、建設的にユーザーの相談に乗ることです。
+パートナーとの過去の会話履歴、取説の内容を加味して、ユーザーからの質問に回答してください。
+回答は質問の言語で回答してください。`;
 
   const contextPrompt = recentSummaries.length > 0
     ? `\n\n直近の会話サマリー:\n${recentSummaries.join("\n\n")}`
     : "";
 
+  // 取説情報を追加
+  let manualPrompt = "";
+  if (userManualItems && userManualItems.length > 0) {
+    const userManualText = userManualItems
+      .filter(item => item.answer && item.answer.trim().length > 0)
+      .map(item => `- ${item.question}: ${item.answer}`)
+      .join("\n");
+    if (userManualText) {
+      manualPrompt += `\n\nユーザー自身の取説（性格や好みなど）:\n${userManualText}`;
+    }
+  }
+  if (partnerManualItems && partnerManualItems.length > 0) {
+    const partnerManualText = partnerManualItems
+      .filter(item => item.answer && item.answer.trim().length > 0)
+      .map(item => `- ${item.question}: ${item.answer}`)
+      .join("\n");
+    if (partnerManualText) {
+      manualPrompt += `\n\nパートナーの取説（性格や好みなど）:\n${partnerManualText}`;
+    }
+  }
+
   const historyText = chatHistory
     .map((h) => `${h.role === "user" ? "ユーザー" : "AI"}: ${h.content}`)
     .join("\n");
 
-  return `${systemPrompt}${contextPrompt}
+  return `${systemPrompt}${contextPrompt}${manualPrompt}
 
 ${historyText ? `これまでの相談履歴:\n${historyText}\n\n` : ""}ユーザー: ${userMessage}
-
-AIカウンセラーとして回答:`;
+`;
 }
 
 /**
@@ -158,12 +188,14 @@ AIカウンセラーとして回答:`;
 export async function generateAIChatResponse(
   userMessage: string,
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>,
-  recentSummaries: string[]
+  recentSummaries: string[],
+  userManualItems?: ManualItem[],
+  partnerManualItems?: ManualItem[]
 ): Promise<string> {
   const client = getClient();
   const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-  const fullPrompt = buildChatPrompt(userMessage, chatHistory, recentSummaries);
+  const fullPrompt = buildChatPrompt(userMessage, chatHistory, recentSummaries, userManualItems, partnerManualItems);
 
   try {
     const result = await model.generateContent(fullPrompt);
@@ -181,12 +213,14 @@ export async function generateAIChatResponse(
 export async function* generateAIChatResponseStream(
   userMessage: string,
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>,
-  recentSummaries: string[]
+  recentSummaries: string[],
+  userManualItems?: ManualItem[],
+  partnerManualItems?: ManualItem[]
 ): AsyncGenerator<string, void, unknown> {
   const client = getClient();
   const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-  const fullPrompt = buildChatPrompt(userMessage, chatHistory, recentSummaries);
+  const fullPrompt = buildChatPrompt(userMessage, chatHistory, recentSummaries, userManualItems, partnerManualItems);
 
   try {
     const result = await model.generateContentStream(fullPrompt);
