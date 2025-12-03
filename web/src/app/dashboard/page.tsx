@@ -90,7 +90,7 @@ export default async function DashboardPage() {
       {/* Main Content */}
       <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
         <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold">{t("pageTitle")}</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">ホーム</h1>
           <p className="mt-2 text-muted-foreground">
             {t("welcomeMessage", { name: profile?.display_name || "" })}
           </p>

@@ -6,7 +6,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { generateTalkSummary } from "@/lib/gemini/client";
+import { generateTalkSummary, generateBondNoteItems } from "@/lib/gemini/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -94,6 +94,52 @@ export async function POST(request: NextRequest) {
 
     console.log("[Summary] Generated:", summaryResult.summary.substring(0, 100));
 
+    // 絆ノート項目生成（partnership_idがある場合のみ）
+    let bondNoteItems: any[] = [];
+    if (talk.partnership_id) {
+      // 既存の継続中のテーマを取得
+      const { data: existingTopics } = await supabase
+        .from("kizuna_topics")
+        .select("id, title")
+        .eq("partnership_id", talk.partnership_id)
+        .eq("status", "active")
+        .order("updated_at", { ascending: false });
+
+      // 過去の絆ノート項目を取得（学習用）
+      const { data: recentItems } = await supabase
+        .from("kizuna_items")
+        .select(`
+          type,
+          assignee,
+          review_period,
+          content,
+          kizuna_topics!inner(title)
+        `)
+        .eq("kizuna_topics.partnership_id", talk.partnership_id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      // データを整形
+      const formattedRecentItems = recentItems?.map((item: any) => ({
+        topic_title: item.kizuna_topics.title,
+        type: item.type,
+        assignee: item.assignee,
+        review_period: item.review_period,
+        content: item.content,
+      })) || [];
+
+      // 絆ノート項目を生成
+      const bondNoteResult = await generateBondNoteItems(
+        messagesWithNames,
+        existingTopics || [],
+        formattedRecentItems
+      );
+
+      bondNoteItems = bondNoteResult.items;
+      console.log("[Summary] Generated bond note items:", bondNoteItems.length);
+    }
+
     // トークを更新
     const { error: updateError } = await supabase
       .from("talks")
@@ -138,6 +184,8 @@ export async function POST(request: NextRequest) {
       summary: summaryResult.summary,
       promises: summaryResult.promises,
       nextTopics: summaryResult.nextTopics,
+      bondNoteItems: bondNoteItems,
+      partnershipId: talk.partnership_id,
     });
   } catch (error) {
     console.error("[Summary] Error:", error);

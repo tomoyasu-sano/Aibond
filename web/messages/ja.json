@@ -2,7 +2,7 @@
   "common": {
     "appName": "Aibond",
     "settings": "設定",
-    "dashboard": "ダッシュボード",
+    "dashboard": "ホーム",
     "logout": "ログアウト",
     "login": "ログイン",
     "signup": "新規登録",
@@ -54,7 +54,7 @@
     "passwordMinLength6": "6文字以上"
   },
   "dashboard": {
-    "pageTitle": "ダッシュボード",
+    "pageTitle": "ホーム",
     "welcomeMessage": "{name}さん、Aibondへようこそ。2人のコミュニケーションを始めましょう。",
     "startConversation": "会話を始める",
     "startNewConversation": "新しい会話を始める",
@@ -131,7 +131,7 @@
     "paused": "一時停止",
     "completed": "完了",
     "backToList": "会話一覧へ戻る",
-    "backToDashboard": "ダッシュボード",
+    "backToDashboard": "ホーム",
     "startNewTalk": "新しい会話を始める"
   },
   "talkDetail": {
@@ -197,7 +197,7 @@
     "continuing": "継続中",
     "fetchFailed": "テーマの取得に失敗しました",
     "createFailed": "テーマの作成に失敗しました",
-    "backToDashboard": "ダッシュボード",
+    "backToDashboard": "ホーム",
     "review": "振り返り",
     "newTopic": "+ 新規"
   },
@@ -342,7 +342,7 @@
     "deleteFailed": "削除に失敗しました",
     "createFailed": "約束の追加に失敗しました",
     "fetchFailed": "約束リストの取得に失敗しました",
-    "backToDashboard": "ダッシュボード"
+    "backToDashboard": "ホーム"
   },
   "partners": {
     "pageTitle": "パートナー連携",
@@ -387,7 +387,7 @@
     "inviteFailed": "招待コードの作成に失敗しました",
     "cancelFailed": "招待コードのキャンセルに失敗しました",
     "deleteFailed": "履歴の削除に失敗しました",
-    "backToDashboard": "ダッシュボード",
+    "backToDashboard": "ホーム",
     "unlinkedPartnerHistory": "過去の履歴管理",
     "unlinkedHistoryDescription": "解除済みパートナーとの会話履歴を削除できます"
   },
@@ -397,7 +397,7 @@
     "noHistory": "相談履歴がありません",
     "untitledConsultation": "無題の相談",
     "aiConsultDescription": "AIに相談する",
-    "aiConsultExplanation": "パートナーとの関係について相談できます。過去の会話サマリーや取説を参考に、あなたに合ったアドバイスを提供します。",
+    "aiConsultExplanation": "パートナーとの関係について相談できます。過去の会話サマリーを参考に、あなたに合ったアドバイスを提供します。",
     "messagePlaceholder": "メッセージを入力... (Cmd+Enterで送信)",
     "sendButton": "送信",
     "stopButton": "停止",
@@ -410,7 +410,7 @@
     "fetchFailed": "相談の取得に失敗しました",
     "sendFailed": "送信に失敗しました",
     "deleteFailed": "削除に失敗しました",
-    "backToDashboard": "ダッシュボードへ",
+    "backToDashboard": "ホームへ",
     "deleteMenuItem": "削除"
   },
   "plans": {
@@ -442,7 +442,7 @@
     "checkoutFailed": "決済ページの作成に失敗しました",
     "portalFailed": "管理ページを開けませんでした",
     "checkoutCancelled": "決済がキャンセルされました",
-    "backToDashboard": "ダッシュボード"
+    "backToDashboard": "ホーム"
   },
   "settings": {
     "pageTitle": "設定",
@@ -497,7 +497,7 @@
     "deleteConfirmMismatch": "確認テキストが一致しません",
     "displayLanguage": "表示言語",
     "displayLanguageHint": "アプリの表示言語を変更します",
-    "backToDashboard": "ダッシュボード"
+    "backToDashboard": "ホーム"
   },
   "terms": {
     "pageTitle": "利用規約",
@@ -505,7 +505,7 @@
     "backToSettings": "設定へ戻る",
     "backToSignup": "新規登録へ戻る",
     "privacyLink": "プライバシーポリシー",
-    "dashboard": "ダッシュボード",
+    "dashboard": "ホーム",
     "settings": "設定",
     "login": "ログイン",
     "getStarted": "無料で始める",
@@ -553,7 +553,7 @@
     "backToSettings": "設定へ戻る",
     "backToSignup": "新規登録へ戻る",
     "termsLink": "利用規約",
-    "dashboard": "ダッシュボード",
+    "dashboard": "ホーム",
     "settings": "設定",
     "login": "ログイン",
     "getStarted": "無料で始める",
@@ -695,7 +695,7 @@
     "dashboardCardComment": "コメント",
     "dashboardCardNoData": "まだ分析データがありません",
     "dashboardCardViewDetail": "詳細を見る",
-    "backToDashboard": "ダッシュボード"
+    "backToDashboard": "ホーム"
   },
   "manual": {
     "pageTitle": "取説",
@@ -736,6 +736,6 @@
     "categoryOther": "その他",
     "fixedQuestion": "固定質問",
     "customQuestion": "カスタム質問",
-    "backToDashboard": "ダッシュボード"
+    "backToDashboard": "ホーム"
   }
 }

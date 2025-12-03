@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { item_id, result, note, new_content, new_review_period } = body;
+    const { item_id, result, note, new_content, new_review_date, new_review_period } = body;
 
     // バリデーション
     if (!item_id) {
@@ -64,25 +64,31 @@ export async function POST(request: NextRequest) {
       itemUpdate.status = "abandoned";
       itemUpdate.review_date = null;
     } else if (result === "continue" || result === "modified") {
-      // 次のレビュー日を計算
-      const period = new_review_period || "1month";
-      const nextDate = new Date();
-      switch (period) {
-        case "1week":
-          nextDate.setDate(nextDate.getDate() + 7);
-          break;
-        case "2weeks":
-          nextDate.setDate(nextDate.getDate() + 14);
-          break;
-        case "1month":
-          nextDate.setMonth(nextDate.getMonth() + 1);
-          break;
-        case "3months":
-          nextDate.setMonth(nextDate.getMonth() + 3);
-          break;
+      // 次のレビュー日を設定（直接指定された日付を優先）
+      if (new_review_date) {
+        itemUpdate.review_date = new_review_date;
+        itemUpdate.review_period = new_review_period || null;
+      } else {
+        // 期間から計算（後方互換性のため）
+        const period = new_review_period || "1month";
+        const nextDate = new Date();
+        switch (period) {
+          case "1week":
+            nextDate.setDate(nextDate.getDate() + 7);
+            break;
+          case "2weeks":
+            nextDate.setDate(nextDate.getDate() + 14);
+            break;
+          case "1month":
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            break;
+          case "3months":
+            nextDate.setMonth(nextDate.getMonth() + 3);
+            break;
+        }
+        itemUpdate.review_date = nextDate.toISOString().split("T")[0];
+        itemUpdate.review_period = period;
       }
-      itemUpdate.review_date = nextDate.toISOString().split("T")[0];
-      itemUpdate.review_period = period;
       itemUpdate.status = "active";
     }
 
@@ -105,21 +111,32 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (originalItem) {
-        const nextDate = new Date();
-        const period = new_review_period || "1month";
-        switch (period) {
-          case "1week":
-            nextDate.setDate(nextDate.getDate() + 7);
-            break;
-          case "2weeks":
-            nextDate.setDate(nextDate.getDate() + 14);
-            break;
-          case "1month":
-            nextDate.setMonth(nextDate.getMonth() + 1);
-            break;
-          case "3months":
-            nextDate.setMonth(nextDate.getMonth() + 3);
-            break;
+        let reviewDate: string;
+        let reviewPeriod: string | null;
+
+        if (new_review_date) {
+          reviewDate = new_review_date;
+          reviewPeriod = new_review_period || null;
+        } else {
+          // 期間から計算（後方互換性のため）
+          const nextDate = new Date();
+          const period = new_review_period || "1month";
+          switch (period) {
+            case "1week":
+              nextDate.setDate(nextDate.getDate() + 7);
+              break;
+            case "2weeks":
+              nextDate.setDate(nextDate.getDate() + 14);
+              break;
+            case "1month":
+              nextDate.setMonth(nextDate.getMonth() + 1);
+              break;
+            case "3months":
+              nextDate.setMonth(nextDate.getMonth() + 3);
+              break;
+          }
+          reviewDate = nextDate.toISOString().split("T")[0];
+          reviewPeriod = period;
         }
 
         await supabase.from("kizuna_items").insert({
@@ -127,8 +144,8 @@ export async function POST(request: NextRequest) {
           type: originalItem.type,
           content: new_content.trim(),
           assignee: originalItem.assignee,
-          review_date: nextDate.toISOString().split("T")[0],
-          review_period: period,
+          review_date: reviewDate,
+          review_period: reviewPeriod,
           status: "active",
           created_by: user.id,
         });

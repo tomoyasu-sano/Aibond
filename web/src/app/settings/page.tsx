@@ -213,7 +213,7 @@ function SettingsContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header t={t} tc={tc} email={null} onSignOut={handleSignOut} />
+        <Header t={t} tc={tc} displayName={null} onSignOut={handleSignOut} />
         <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
           <div className="animate-pulse space-y-4">
             <div className="h-8 w-32 bg-muted rounded" />
@@ -227,7 +227,7 @@ function SettingsContent() {
   if (!data) {
     return (
       <div className="min-h-screen bg-background">
-        <Header t={t} tc={tc} email={null} onSignOut={handleSignOut} />
+        <Header t={t} tc={tc} displayName={null} onSignOut={handleSignOut} />
         <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
           <p>{t("fetchFailed")}</p>
         </main>
@@ -242,7 +242,7 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header t={t} tc={tc} email={data.email} onSignOut={handleSignOut} />
+      <Header t={t} tc={tc} displayName={data.profile.display_name} onSignOut={handleSignOut} />
 
       <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
         <div className="mb-6 md:mb-8">
@@ -549,7 +549,7 @@ function SettingsContent() {
   );
 }
 
-function Header({ t, tc, email, onSignOut }: { t: ReturnType<typeof useTranslations>; tc: ReturnType<typeof useTranslations>; email: string | null; onSignOut: () => void }) {
+function Header({ t, tc, displayName, onSignOut }: { t: ReturnType<typeof useTranslations>; tc: ReturnType<typeof useTranslations>; displayName: string | null; onSignOut: () => void }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 md:h-16 items-center justify-between px-4">
@@ -566,8 +566,8 @@ function Header({ t, tc, email, onSignOut }: { t: ReturnType<typeof useTranslati
               <span className="hidden md:inline">{t("backToDashboard")}</span>
             </Button>
           </Link>
-          {email && (
-            <span className="hidden md:inline text-sm text-muted-foreground">{email}</span>
+          {displayName && (
+            <span className="hidden md:inline text-sm text-muted-foreground">{displayName}</span>
           )}
         </nav>
       </div>

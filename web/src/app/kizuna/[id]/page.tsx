@@ -156,7 +156,8 @@ export default function KizunaDetailPage({
   const [newItemType, setNewItemType] = useState<string>("promise");
   const [newItemContent, setNewItemContent] = useState("");
   const [newItemAssignee, setNewItemAssignee] = useState("self");
-  const [newItemReviewPeriod, setNewItemReviewPeriod] = useState("1month");
+  const [newItemReviewDate, setNewItemReviewDate] = useState("");
+  const [newItemReviewPeriod, setNewItemReviewPeriod] = useState("1month"); // 保存用
   const [newItemParentId, setNewItemParentId] = useState<string>("");
   const [isAddingChildMode, setIsAddingChildMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -169,7 +170,8 @@ export default function KizunaDetailPage({
   const [reviewResult, setReviewResult] = useState<string>("");
   const [reviewNote, setReviewNote] = useState("");
   const [reviewNewContent, setReviewNewContent] = useState("");
-  const [reviewNewPeriod, setReviewNewPeriod] = useState("1month");
+  const [reviewNewDate, setReviewNewDate] = useState("");
+  const [reviewNewPeriod, setReviewNewPeriod] = useState("1month"); // 保存用
 
   // 新規テーマ作成
   const [isNewTopicDialogOpen, setIsNewTopicDialogOpen] = useState(false);
@@ -180,6 +182,38 @@ export default function KizunaDetailPage({
     fetchTopic();
     fetchAllTopics();
   }, [id]);
+
+  // クイック選択から日付を計算
+  const calculateDateFromPeriod = (period: string): string => {
+    const date = new Date();
+    switch (period) {
+      case "1week":
+        date.setDate(date.getDate() + 7);
+        break;
+      case "2weeks":
+        date.setDate(date.getDate() + 14);
+        break;
+      case "1month":
+        date.setMonth(date.getMonth() + 1);
+        break;
+      case "3months":
+        date.setMonth(date.getMonth() + 3);
+        break;
+    }
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD形式
+  };
+
+  // クイック選択ボタンのクリック
+  const handleQuickSelect = (period: string) => {
+    setNewItemReviewPeriod(period);
+    setNewItemReviewDate(calculateDateFromPeriod(period));
+  };
+
+  // レビュー時のクイック選択
+  const handleReviewQuickSelect = (period: string) => {
+    setReviewNewPeriod(period);
+    setReviewNewDate(calculateDateFromPeriod(period));
+  };
 
   const fetchAllTopics = async () => {
     try {
@@ -222,25 +256,10 @@ export default function KizunaDetailPage({
 
     setIsSubmitting(true);
     try {
-      // 約束の場合、レビュー日を計算
+      // 約束の場合、レビュー日を使用
       let reviewDate = null;
-      if (newItemType === "promise") {
-        const date = new Date();
-        switch (newItemReviewPeriod) {
-          case "1week":
-            date.setDate(date.getDate() + 7);
-            break;
-          case "2weeks":
-            date.setDate(date.getDate() + 14);
-            break;
-          case "1month":
-            date.setMonth(date.getMonth() + 1);
-            break;
-          case "3months":
-            date.setMonth(date.getMonth() + 3);
-            break;
-        }
-        reviewDate = date.toISOString().split("T")[0];
+      if (newItemType === "promise" && newItemReviewDate) {
+        reviewDate = newItemReviewDate;
       }
 
       const isChildType = ["my_feeling", "partner_feeling", "memo"].includes(newItemType);
@@ -360,6 +379,9 @@ export default function KizunaDetailPage({
           result: reviewResult,
           note: reviewNote.trim() || null,
           new_content: reviewResult === "modified" ? reviewNewContent.trim() : null,
+          new_review_date: ["continue", "modified"].includes(reviewResult) && reviewNewDate
+            ? reviewNewDate
+            : null,
           new_review_period: ["continue", "modified"].includes(reviewResult)
             ? reviewNewPeriod
             : null,
@@ -720,17 +742,51 @@ export default function KizunaDetailPage({
             {newItemType === "promise" && (
               <div>
                 <label className="text-sm font-medium">{t("reviewPeriod")}</label>
-                <Select value={newItemReviewPeriod} onValueChange={setNewItemReviewPeriod}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1week">{t("oneWeek")}</SelectItem>
-                    <SelectItem value="2weeks">{t("twoWeeks")}</SelectItem>
-                    <SelectItem value="1month">{t("oneMonth")}</SelectItem>
-                    <SelectItem value="3months">{t("threeMonths")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* クイック選択ボタン */}
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant={newItemReviewPeriod === "1week" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleQuickSelect("1week")}
+                  >
+                    {t("oneWeek")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={newItemReviewPeriod === "2weeks" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleQuickSelect("2weeks")}
+                  >
+                    {t("twoWeeks")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={newItemReviewPeriod === "1month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleQuickSelect("1month")}
+                  >
+                    {t("oneMonth")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={newItemReviewPeriod === "3months" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleQuickSelect("3months")}
+                  >
+                    {t("threeMonths")}
+                  </Button>
+                </div>
+                {/* 日付入力 */}
+                <Input
+                  type="date"
+                  className="mt-2"
+                  value={newItemReviewDate}
+                  onChange={(e) => {
+                    setNewItemReviewDate(e.target.value);
+                    setNewItemReviewPeriod(""); // カスタム日付を入力したらperiodをクリア
+                  }}
+                />
                 <p className="text-xs text-muted-foreground mt-1">
                   {t("reviewHint")}
                 </p>
@@ -905,17 +961,51 @@ export default function KizunaDetailPage({
             {["continue", "modified"].includes(reviewResult) && (
               <div>
                 <label className="text-sm font-medium">{t("nextReviewPeriod")}</label>
-                <Select value={reviewNewPeriod} onValueChange={setReviewNewPeriod}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1week">{t("oneWeek")}</SelectItem>
-                    <SelectItem value="2weeks">{t("twoWeeks")}</SelectItem>
-                    <SelectItem value="1month">{t("oneMonth")}</SelectItem>
-                    <SelectItem value="3months">{t("threeMonths")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* クイック選択ボタン */}
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant={reviewNewPeriod === "1week" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReviewQuickSelect("1week")}
+                  >
+                    {t("oneWeek")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={reviewNewPeriod === "2weeks" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReviewQuickSelect("2weeks")}
+                  >
+                    {t("twoWeeks")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={reviewNewPeriod === "1month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReviewQuickSelect("1month")}
+                  >
+                    {t("oneMonth")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={reviewNewPeriod === "3months" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleReviewQuickSelect("3months")}
+                  >
+                    {t("threeMonths")}
+                  </Button>
+                </div>
+                {/* 日付入力 */}
+                <Input
+                  type="date"
+                  className="mt-2"
+                  value={reviewNewDate}
+                  onChange={(e) => {
+                    setReviewNewDate(e.target.value);
+                    setReviewNewPeriod(""); // カスタム日付を入力したらperiodをクリア
+                  }}
+                />
               </div>
             )}
 

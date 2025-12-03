@@ -7,6 +7,23 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SpeakerMappingDialog } from "@/components/talk/SpeakerMappingDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface Talk {
@@ -38,6 +55,11 @@ export default function SummaryPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSpeakerMapping, setShowSpeakerMapping] = useState(false);
   const [hasShownMapping, setHasShownMapping] = useState(false);
+  const [bondNoteItems, setBondNoteItems] = useState<any[]>([]);
+  const [partnershipId, setPartnershipId] = useState<string | null>(null);
+  const [showBondNoteDialog, setShowBondNoteDialog] = useState(false);
+  const [isSavingBondNotes, setIsSavingBondNotes] = useState(false);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchTalk();
@@ -108,6 +130,14 @@ export default function SummaryPage() {
               }
             : null
         );
+
+        // 絆ノート項目があればダイアログを表示（0件の場合は表示しない）
+        if (data.bondNoteItems && data.bondNoteItems.length > 0 && data.partnershipId) {
+          setBondNoteItems(data.bondNoteItems);
+          setPartnershipId(data.partnershipId);
+          setShowBondNoteDialog(true);
+        }
+
         toast.success(t("generatingMessage"));
       } else {
         toast.error(t("generationFailed"));
@@ -117,6 +147,54 @@ export default function SummaryPage() {
       toast.error(t("generationFailed"));
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const saveBondNotesToKizuna = async () => {
+    if (!partnershipId || bondNoteItems.length === 0) return;
+
+    setIsSavingBondNotes(true);
+    try {
+      const res = await fetch("/api/kizuna/bulk-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnershipId,
+          talkId,
+          items: bondNoteItems,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(
+          `絆ノートに追加しました（テーマ: ${data.createdTopics}件、項目: ${data.createdItems}件）`
+        );
+        setShowBondNoteDialog(false);
+        setBondNoteItems([]);
+      } else {
+        toast.error("絆ノートへの追加に失敗しました");
+      }
+    } catch (error) {
+      console.error("Error saving bond notes:", error);
+      toast.error("絆ノートへの追加に失敗しました");
+    } finally {
+      setIsSavingBondNotes(false);
+    }
+  };
+
+  const updateBondNoteItem = (index: number, field: string, value: any) => {
+    setBondNoteItems((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  const deleteBondNoteItem = (index: number) => {
+    setBondNoteItems((prev) => prev.filter((_, i) => i !== index));
+    if (editingItemIndex === index) {
+      setEditingItemIndex(null);
     }
   };
 
@@ -355,6 +433,244 @@ export default function SummaryPage() {
         talkId={talkId}
         onMappingComplete={fetchTalk}
       />
+
+      {/* 絆ノート追加確認ダイアログ */}
+      <Dialog open={showBondNoteDialog} onOpenChange={setShowBondNoteDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>絆ノートに追加しますか？</DialogTitle>
+            <DialogDescription>
+              会話から以下の項目を抽出しました。編集・削除してから追加することができます。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {bondNoteItems.map((item, index) => (
+              <Card key={index}>
+                <CardContent className="pt-4">
+                  {editingItemIndex === index ? (
+                    // Edit mode
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">テーマ</label>
+                        <Input
+                          value={item.topicTitle || ""}
+                          onChange={(e) =>
+                            updateBondNoteItem(index, "topicTitle", e.target.value)
+                          }
+                          placeholder="テーマ名を入力"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">種類</label>
+                          <Select
+                            value={item.type}
+                            onValueChange={(value) =>
+                              updateBondNoteItem(index, "type", value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="promise">約束</SelectItem>
+                              <SelectItem value="request">要望</SelectItem>
+                              <SelectItem value="discussion">検討</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">担当</label>
+                          <Select
+                            value={item.assignee}
+                            onValueChange={(value) =>
+                              updateBondNoteItem(index, "assignee", value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="self">自分</SelectItem>
+                              <SelectItem value="partner">パートナー</SelectItem>
+                              <SelectItem value="both">二人</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">見直し日</label>
+                        <Input
+                          type="date"
+                          value={item.reviewDate || ""}
+                          onChange={(e) =>
+                            updateBondNoteItem(index, "reviewDate", e.target.value)
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">内容</label>
+                        <Textarea
+                          value={item.content}
+                          onChange={(e) =>
+                            updateBondNoteItem(index, "content", e.target.value)
+                          }
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">気持ち（任意）</label>
+                        <Textarea
+                          value={item.feeling || ""}
+                          onChange={(e) =>
+                            updateBondNoteItem(index, "feeling", e.target.value)
+                          }
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">相手の気持ち（任意）</label>
+                        <Textarea
+                          value={item.partnerFeeling || ""}
+                          onChange={(e) =>
+                            updateBondNoteItem(index, "partnerFeeling", e.target.value)
+                          }
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">メモ（任意）</label>
+                        <Textarea
+                          value={item.memo || ""}
+                          onChange={(e) =>
+                            updateBondNoteItem(index, "memo", e.target.value)
+                          }
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingItemIndex(null)}
+                        >
+                          完了
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => deleteBondNoteItem(index)}
+                        >
+                          削除
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // View mode
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            📁 {item.topicTitle || "既存テーマ"}
+                          </span>
+                          {item.topicTitle && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                              新規
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingItemIndex(index)}
+                          >
+                            編集
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteBondNoteItem(index)}
+                          >
+                            削除
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs px-2 py-1 rounded ${
+                            item.type === "promise"
+                              ? "bg-blue-100 text-blue-700"
+                              : item.type === "request"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-orange-100 text-orange-700"
+                          }`}
+                        >
+                          {item.type === "promise"
+                            ? "約束"
+                            : item.type === "request"
+                            ? "要望"
+                            : "検討"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          担当: {item.assignee === "self" ? "自分" : item.assignee === "partner" ? "パートナー" : "二人"}
+                        </span>
+                        {item.reviewDate && (
+                          <span className="text-xs text-muted-foreground">
+                            見直し: {item.reviewDate}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-sm">{item.content}</p>
+
+                      {(item.feeling || item.partnerFeeling || item.memo) && (
+                        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                          {item.feeling && (
+                            <p>💭 気持ち: {item.feeling}</p>
+                          )}
+                          {item.partnerFeeling && (
+                            <p>💕 相手の気持ち: {item.partnerFeeling}</p>
+                          )}
+                          {item.memo && (
+                            <p>📝 メモ: {item.memo}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBondNoteDialog(false)}
+              disabled={isSavingBondNotes}
+            >
+              キャンセル
+            </Button>
+            <Button
+              onClick={saveBondNotesToKizuna}
+              disabled={isSavingBondNotes || bondNoteItems.length === 0}
+            >
+              {isSavingBondNotes ? "追加中..." : `絆ノートに追加 (${bondNoteItems.length}件)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
