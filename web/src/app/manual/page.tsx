@@ -55,6 +55,7 @@ export default async function ManualPage() {
       userName={profile?.display_name || profile?.name || ""}
       partner={partner}
       partnershipId={partnership?.id}
+      userLanguage={profile?.language || "ja"}
     />
   );
 }

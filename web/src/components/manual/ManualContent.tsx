@@ -19,6 +19,7 @@ interface ManualContentProps {
   userName: string;
   partner: Partner | null;
   partnershipId?: string;
+  userLanguage?: string;
 }
 
 export function ManualContent({
@@ -26,6 +27,7 @@ export function ManualContent({
   userName,
   partner,
   partnershipId,
+  userLanguage = "ja",
 }: ManualContentProps) {
   const t = useTranslations("manual");
   const [myItems, setMyItems] = useState<ManualItem[]>([]);
@@ -263,6 +265,7 @@ export function ManualContent({
         currentUserId={userId}
         partnershipId={partnershipId}
         isOwn={true}
+        userLanguage={userLanguage}
         onItemAdded={handleItemAdded}
         onItemUpdated={handleItemUpdated}
         onItemDeleted={handleItemDeleted}
@@ -278,6 +281,7 @@ export function ManualContent({
           currentUserId={userId}
           partnershipId={partnershipId}
           isOwn={false}
+          userLanguage={userLanguage}
           onItemAdded={handleItemAdded}
           onItemUpdated={handleItemUpdated}
           onItemDeleted={handleItemDeleted}

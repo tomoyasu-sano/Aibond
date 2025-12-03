@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/accordion";
 import { ManualItemModal } from "@/components/manual/ManualItemModal";
 import { OnboardingModal } from "@/components/manual/OnboardingModal";
+import { VoiceInputModal } from "@/components/manual/VoiceInputModal";
 import { MANUAL_CATEGORIES } from "@/lib/manual/config";
 import type { ManualItem, ManualCategory } from "@/types/manual";
-import { X, Plus, Trash2, Edit } from "lucide-react";
+import { X, Plus, Trash2, Edit, Mic } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,7 @@ interface BookContentProps {
   currentUserId: string;
   partnershipId?: string;
   isOwn: boolean;
+  userLanguage?: string;
   onItemAdded: (item: ManualItem) => void;
   onItemUpdated: (item: ManualItem) => void;
   onItemDeleted: (itemId: string, targetUserId: string) => void;
@@ -49,12 +51,14 @@ export function BookContent({
   currentUserId,
   partnershipId,
   isOwn,
+  userLanguage = "ja",
   onItemAdded,
   onItemUpdated,
   onItemDeleted,
 }: BookContentProps) {
   const t = useTranslations("manual");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ManualItem | null>(null);
   const [deletingItem, setDeletingItem] = useState<ManualItem | null>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -96,6 +100,10 @@ export function BookContent({
   const handleOnboardingComplete = (newItems: ManualItem[]) => {
     newItems.forEach((item) => onItemAdded(item));
     setShowOnboarding(false);
+  };
+
+  const handleVoiceItemsGenerated = (newItems: ManualItem[]) => {
+    newItems.forEach((item) => onItemAdded(item));
   };
 
   const accentColor = isOwn
@@ -285,7 +293,7 @@ export function BookContent({
                     </Accordion>
 
                     {/* 追加ボタン */}
-                    <div className="flex justify-center pt-2">
+                    <div className="flex justify-center gap-2 pt-2">
                       <Button
                         onClick={() => setIsAddModalOpen(true)}
                         variant="outline"
@@ -293,6 +301,14 @@ export function BookContent({
                       >
                         <Plus size={18} />
                         {t("addItem")}
+                      </Button>
+                      <Button
+                        onClick={() => setIsVoiceModalOpen(true)}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Mic size={18} />
+                        音声で追加
                       </Button>
                     </div>
                   </div>
@@ -323,6 +339,15 @@ export function BookContent({
         currentUserId={currentUserId}
         partnershipId={partnershipId}
         onComplete={handleOnboardingComplete}
+      />
+
+      {/* 音声入力モーダル */}
+      <VoiceInputModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        targetUserId={targetUserId}
+        userLanguage={userLanguage}
+        onItemsGenerated={handleVoiceItemsGenerated}
       />
 
       {/* 削除確認ダイアログ */}

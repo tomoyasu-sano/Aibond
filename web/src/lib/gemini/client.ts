@@ -404,3 +404,101 @@ export async function* generateAIChatResponseStream(
     throw new Error("AI応答の生成に失敗しました");
   }
 }
+
+/**
+ * 取説項目の型
+ */
+export interface ManualItemGeneration {
+  category: string;
+  question: string;
+  answer: string;
+  date?: string;
+}
+
+export interface ManualItemsGenerationResult {
+  items: ManualItemGeneration[];
+}
+
+/**
+ * 音声テキストから取説項目を生成
+ */
+export async function generateManualItemsFromVoice(
+  transcript: string
+): Promise<ManualItemsGenerationResult> {
+  if (!transcript || transcript.trim().length === 0) {
+    return { items: [] };
+  }
+
+  const client = getClient();
+  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  const prompt = `あなたは取説（マニュアル）項目を生成するアシスタントです。
+ユーザーが話した内容から、以下のカテゴリーに該当する項目を抽出してJSON形式で返してください。
+
+【カテゴリー】
+- basic: 基本情報（誕生日、血液型、出身地など）
+- personality: 性格・気持ち
+- hobbies: 趣味・好み
+- communication: コミュニケーション
+- lifestyle: 生活習慣
+- other: その他
+
+【入力テキスト】
+${transcript}
+
+以下のJSON形式で返してください（他の文章は含めないでください）:
+{
+  "items": [
+    {
+      "category": "カテゴリーID",
+      "question": "簡潔な質問の項目名（5-15文字程度）",
+      "answer": "回答内容",
+      "date": "YYYY-MM-DD形式の日付（誕生日、記念日などがあれば。なければnull）"
+    }
+  ]
+}
+
+【抽出ルール】
+1. 入力テキストを自然な文章に整理する
+  * 類似内容はまとめて1つにする
+2. 1の内容を「回答（answer）」としてセットする。
+3. 回答を複数のカテゴリー（category）に分けて振り分ける
+4. それぞれに簡潔な質問をセットする
+  * 「？」は用いず項目名を採用する（例: 「性格」「好きな食べ物」「誕生日」）
+5. 日付が明示的に言及されている場合のみdate項目を追加する
+   - 「1月15日」「1/15」→ 今年の日付として "YYYY-01-15"
+   - 「誕生日は1990年3月20日」→ "1990-03-20"
+
+[確認事項]
+質問と回答の整合性をとってください。
+必ず有効なJSONのみを返してください。`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    console.log("[Gemini] Manual items raw response:", text);
+
+    // JSONを抽出（マークダウンコードブロックを除去）
+    let jsonText = text.trim();
+    if (jsonText.startsWith("```json")) {
+      jsonText = jsonText.slice(7);
+    } else if (jsonText.startsWith("```")) {
+      jsonText = jsonText.slice(3);
+    }
+    if (jsonText.endsWith("```")) {
+      jsonText = jsonText.slice(0, -3);
+    }
+    jsonText = jsonText.trim();
+
+    const parsed = JSON.parse(jsonText) as ManualItemsGenerationResult;
+
+    return {
+      items: parsed.items || [],
+    };
+  } catch (error) {
+    console.error("[Gemini] Error generating manual items:", error);
+    return { items: [] };
+  }
+}
