@@ -4,6 +4,7 @@ import { updateUsageAndNotify } from "@/lib/usage/client";
 import { analyzeTalk, getTimeOfDay, type PreviousAnalysis } from "@/lib/sentiment";
 import { NextResponse } from "next/server";
 import type { TimeOfDay } from "@/types/database";
+import { executeDiarization } from "./diarize/route";
 
 // GET - Get single talk with messages
 export async function GET(
@@ -138,9 +139,9 @@ export async function PATCH(
         console.error("[Talk End] Usage update failed:", err);
       });
 
-      // サマリー生成を非同期で実行（レスポンスを先に返す）
-      generateSummaryAsync(id, talk, supabase).catch((err) => {
-        console.error("[Talk End] Summary generation failed:", err);
+      // 話者識別を非同期で実行（完了後にサマリー生成）
+      triggerDiarizationAndSummary(id, talk, supabase).catch((err) => {
+        console.error("[Talk End] Diarization and summary failed:", err);
       });
       break;
 
@@ -196,6 +197,30 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true });
+}
+
+/**
+ * 話者識別を実行してからサマリー生成を実行
+ */
+async function triggerDiarizationAndSummary(
+  talkId: string,
+  talk: Record<string, unknown>,
+  supabase: Awaited<ReturnType<typeof createClient>>
+) {
+  try {
+    console.log("[Diarization] Starting diarization for talk:", talkId);
+
+    // 話者識別を実行
+    const diarizeResult = await executeDiarization(talkId, supabase);
+    console.log("[Diarization] Completed:", diarizeResult);
+
+    // 話者識別完了後にサマリー生成
+    await generateSummaryAsync(talkId, talk, supabase);
+  } catch (error) {
+    console.error("[Diarization] Unexpected error:", error);
+    // エラーの場合でもサマリー生成は続行（話者タグなしで）
+    await generateSummaryAsync(talkId, talk, supabase);
+  }
 }
 
 /**

@@ -18,11 +18,12 @@ interface Talk {
   speaker1_name: string | null;
   speaker2_name: string | null;
   summary: string | null;
+  diarization_status?: string;
 }
 
 interface Message {
   id: string;
-  speaker_tag: number;
+  speaker_tag: number | null;
   original_text: string;
   original_language: string;
   translated_text: string | null;
@@ -46,6 +47,8 @@ export default function TalkPage() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [interimText, setInterimText] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
+  const [previousDiarizationStatus, setPreviousDiarizationStatus] = useState<boolean>(false);
+  const [isSwappingSpeakers, setIsSwappingSpeakers] = useState(false);
 
   // Refs for streaming
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -75,6 +78,28 @@ export default function TalkPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, interimText]);
+
+  // Poll for message updates after talk completion (for diarization)
+  useEffect(() => {
+    if (talk?.status === "completed") {
+      // Check if any messages have null speaker tags (diarization in progress)
+      const hasPendingDiarization = messages.some(m => m.speaker_tag === null);
+
+      // Check if diarization just completed
+      if (previousDiarizationStatus && !hasPendingDiarization && messages.length > 0) {
+        console.log("[Talk] Diarization completed!");
+        toast.success("話者識別が完了しました");
+      }
+
+      setPreviousDiarizationStatus(hasPendingDiarization);
+
+      if (hasPendingDiarization) {
+        console.log("[Talk] Diarization in progress, polling for updates...");
+        const interval = setInterval(fetchTalk, 5000); // Poll every 5 seconds
+        return () => clearInterval(interval);
+      }
+    }
+  }, [talk?.status, messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -203,12 +228,12 @@ export default function TalkPage() {
           const data = JSON.parse(e.data);
           console.log("[Recording] Final:", data.text, "Translated:", data.translatedText);
           setInterimText("");
-          // DBに保存されるのでメッセージリストを更新
+          // DBに保存されるのでメッセージリストを更新（話者タグは後でBatchRecognizeで更新される）
           setMessages((prev) => [
             ...prev,
             {
               id: data.id,
-              speaker_tag: 1,
+              speaker_tag: null, // 話者識別は会話終了後にBatchRecognizeで実行
               original_text: data.text,
               original_language: "ja",
               translated_text: data.translatedText || null,
@@ -521,6 +546,35 @@ export default function TalkPage() {
     });
   };
 
+  const swapSpeakers = async () => {
+    if (isSwappingSpeakers) return;
+
+    setIsSwappingSpeakers(true);
+    try {
+      const res = await fetch(`/api/talks/${talkId}/swap-speakers`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log("[Swap Speakers] Success:", data);
+        toast.success(`話者を入れ替えました (${data.swappedCount}件)`);
+
+        // メッセージを再取得
+        await fetchTalk();
+      } else {
+        const error = await res.json();
+        console.error("[Swap Speakers] Error:", error);
+        toast.error("話者の入れ替えに失敗しました");
+      }
+    } catch (error) {
+      console.error("[Swap Speakers] Error:", error);
+      toast.error("話者の入れ替えに失敗しました");
+    } finally {
+      setIsSwappingSpeakers(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -596,7 +650,47 @@ export default function TalkPage() {
         {/* Messages */}
         <Card className="flex-1 flex flex-col min-h-0">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">{t("conversationContent")}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">{t("conversationContent")}</CardTitle>
+              <div className="flex items-center gap-2">
+                {talk.status === "completed" && messages.some(m => m.speaker_tag === null) && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+                    話者識別処理中...
+                  </span>
+                )}
+                {talk.status === "completed" &&
+                 messages.length > 0 &&
+                 !messages.some(m => m.speaker_tag === null) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={swapSpeakers}
+                    disabled={isSwappingSpeakers}
+                    className="text-xs"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-1"
+                    >
+                      <polyline points="17 1 21 5 17 9" />
+                      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                      <polyline points="7 23 3 19 7 15" />
+                      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                    </svg>
+                    {isSwappingSpeakers ? "入れ替え中..." : "話者を入れ替え"}
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto">
             <div className="space-y-4">
@@ -608,32 +702,52 @@ export default function TalkPage() {
                 </p>
               )}
 
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.speaker_tag === 1 ? "justify-start" : "justify-end"}`}
-                >
+              {messages.map((message) => {
+                const getSpeakerName = () => {
+                  if (message.speaker_tag === null) {
+                    return "処理中";
+                  } else if (message.speaker_tag === 1) {
+                    return talk.speaker1_name || "話者1";
+                  } else {
+                    return talk.speaker2_name || "話者2";
+                  }
+                };
+
+                const getSpeakerAlignment = () => {
+                  if (message.speaker_tag === null) return "justify-start";
+                  return message.speaker_tag === 1 ? "justify-start" : "justify-end";
+                };
+
+                const getSpeakerBg = () => {
+                  if (message.speaker_tag === null) {
+                    return "bg-yellow-50 border border-yellow-200";
+                  }
+                  return message.speaker_tag === 1
+                    ? "bg-muted"
+                    : "bg-primary text-primary-foreground";
+                };
+
+                return (
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                      message.speaker_tag === 1
-                        ? "bg-muted"
-                        : "bg-primary text-primary-foreground"
-                    }`}
+                    key={message.id}
+                    className={`flex ${getSpeakerAlignment()}`}
                   >
-                    <div className="text-xs opacity-70 mb-1">
-                      {message.speaker_tag === 1 ? talk.speaker1_name : talk.speaker2_name}
-                      {" • "}
-                      {formatTimestamp(message.timestamp)}
+                    <div className={`max-w-[80%] rounded-lg px-4 py-2 ${getSpeakerBg()}`}>
+                      <div className="text-xs opacity-70 mb-1">
+                        <span className="font-semibold">{getSpeakerName()}</span>
+                        {" • "}
+                        {formatTimestamp(message.timestamp)}
+                      </div>
+                      <p>{message.original_text}</p>
+                      {message.translated_text && (
+                        <p className="text-sm opacity-80 mt-1 italic">
+                          {message.translated_text}
+                        </p>
+                      )}
                     </div>
-                    <p>{message.original_text}</p>
-                    {message.translated_text && (
-                      <p className="text-sm opacity-80 mt-1 italic">
-                        {message.translated_text}
-                      </p>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {interimText && (
                 <div className="flex justify-start">

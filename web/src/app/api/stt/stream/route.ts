@@ -15,6 +15,20 @@ import * as fs from "fs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// 言語コードを変換（ja → ja-JP）
+function convertLanguageCode(lang: string): string {
+  const mapping: Record<string, string> = {
+    ja: "ja-JP",
+    en: "en-US",
+    es: "es-ES",
+    fr: "fr-FR",
+    de: "de-DE",
+    zh: "zh-CN",
+    ko: "ko-KR",
+  };
+  return mapping[lang] || "ja-JP";
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const sessionId = searchParams.get("sessionId");
@@ -124,7 +138,7 @@ export async function GET(request: NextRequest) {
           apiEndpoint: "asia-northeast1-speech.googleapis.com",
         });
 
-        // Recognizer設定
+        // Recognizer設定（asia-northeast1でChirp 3が利用可能）
         const recognizerPath = `projects/${projectId}/locations/asia-northeast1/recognizers/_`;
 
         // V2 RecognitionConfig
@@ -134,10 +148,11 @@ export async function GET(request: NextRequest) {
             sampleRateHertz: 16000,
             audioChannelCount: 1,
           },
-          languageCodes: ["ja-JP"],
-          model: "long", // 日本語用モデル
+          languageCodes: [convertLanguageCode(sourceLanguage)],
+          model: "long", // リアルタイム用（話者識別は後でBatchRecognizeで実行）
           features: {
             enableAutomaticPunctuation: true,
+            // diarizationConfigはStreamingRecognizeで日本語未対応のため削除
           },
         };
 
@@ -184,8 +199,9 @@ export async function GET(request: NextRequest) {
             if (!result) return;
 
             const event = result.isFinal ? "final" : "partial";
-            const transcript = result.alternatives?.[0]?.transcript || "";
-            const confidence = result.alternatives?.[0]?.confidence || 0;
+            const alternative = result.alternatives?.[0];
+            const transcript = alternative?.transcript || "";
+            const confidence = alternative?.confidence || 0;
 
             if (!transcript) return;
 
@@ -215,14 +231,14 @@ export async function GET(request: NextRequest) {
 
             safeEnqueue(encoder.encode(sseData));
 
-            // Final結果の場合、DBに保存
+            // Final結果の場合、DBに保存（話者タグはnull、後でBatchRecognizeで更新）
             if (result.isFinal && transcript.trim()) {
               try {
                 const { error: insertError } = await supabase
                   .from("talk_messages")
                   .insert({
                     talk_id: talkId,
-                    speaker_tag: 1,
+                    speaker_tag: null, // 後でBatchRecognizeで更新
                     original_text: transcript,
                     original_language: sourceLanguage,
                     translated_text: translatedText,
