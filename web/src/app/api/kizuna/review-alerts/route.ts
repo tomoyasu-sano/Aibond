@@ -86,8 +86,8 @@ export async function GET() {
       type: item.type,
       content: item.content,
       review_date: item.review_date,
-      topic_id: item.topic.id,
-      topic_title: item.topic.title,
+      topic_id: (item.topic as any).id,
+      topic_title: (item.topic as any).title,
       days_remaining: diffDays,
       urgency,
     };
