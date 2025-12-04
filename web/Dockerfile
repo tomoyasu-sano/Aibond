@@ -2,15 +2,8 @@
 # Multi-stage build for Next.js 14 on Cloud Run
 
 # Stage 1: Builder
-FROM node:20-slim AS builder
+FROM node:20 AS builder
 WORKDIR /app
-
-# Install build dependencies for native modules
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package.json package-lock.json* ./
