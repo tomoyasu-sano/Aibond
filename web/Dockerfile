@@ -21,6 +21,9 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Rebuild native modules for the current platform
+RUN npm rebuild lightningcss --verbose
+
 # Build Next.js application
 RUN npm run build
 
