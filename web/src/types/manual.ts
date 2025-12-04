@@ -32,3 +32,11 @@ export interface UpdateManualItemRequest {
   answer?: string;
   date?: string;
 }
+
+export interface ManualItemsResponse {
+  items: ManualItem[];
+  stats: {
+    total: number;
+    byCategory: Record<ManualCategory, number>;
+  };
+}
