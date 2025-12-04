@@ -72,11 +72,11 @@ export async function executeDiarization(
       apiEndpoint: "asia-northeast1-speech.googleapis.com",
     });
 
-    // ユーザーの言語を取得
+    // ユーザーの言語を取得（talk.owner_user_idを使用）
     const { data: profile } = await supabase
       .from("user_profiles")
       .select("language")
-      .eq("id", user.id)
+      .eq("id", talk.owner_user_id)
       .single();
 
     const sourceLanguage = profile?.language || "ja";
@@ -252,8 +252,9 @@ export async function executeDiarization(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // 認証チェック
@@ -266,7 +267,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const talkId = params.id;
+  const talkId = id;
 
   try {
     const result = await executeDiarization(talkId, supabase);

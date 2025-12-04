@@ -10,8 +10,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // 認証チェック
@@ -24,7 +25,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const talkId = params.id;
+  const talkId = id;
 
   console.log(`[Swap Speakers] Starting speaker swap for talk: ${talkId}`);
 
