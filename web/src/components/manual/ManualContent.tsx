@@ -78,6 +78,7 @@ export function ManualContent({
     if (!partner) return;
 
     async function fetchPartnerItems() {
+      if (!partner) return;
       try {
         const res = await fetch(`/api/manual?target_user_id=${partner.id}`);
         if (res.ok) {
@@ -97,6 +98,7 @@ export function ManualContent({
     if (!partner) return;
 
     async function fetchPartnerCoverImage() {
+      if (!partner) return;
       try {
         const res = await fetch(`/api/manual/cover-image?target_user_id=${partner.id}`);
         if (res.ok) {
