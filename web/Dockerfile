@@ -2,17 +2,14 @@
 # Multi-stage build for Next.js 14 on Cloud Run
 
 # Stage 1: Builder
-FROM node:20 AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies with native module build support
+# Install dependencies
 RUN npm ci
-
-# Force reinstall lightningcss to rebuild native binaries
-RUN rm -rf node_modules/lightningcss && npm install lightningcss --no-save
 
 # Copy application code
 COPY . .
