@@ -23,7 +23,7 @@ export function Book({ item, onEdit, onDelete }: BookProps) {
   const t = useTranslations("manual");
   const category = MANUAL_CATEGORIES[item.category];
   const IconComponent = category.icon;
-  const bookColor = item.color || category.defaultColor;
+  const bookColor = category.defaultColor;
 
   // ランダムな高さのバリエーション（控えめに）
   const randomHeight = 120 + Math.random() * 25; // 120px ~ 145px
