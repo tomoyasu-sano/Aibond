@@ -1,33 +1,34 @@
 # Aibond Web Application Dockerfile
 # Multi-stage build for Next.js 14 on Cloud Run
 
-# Stage 1: Dependencies
-FROM node:20-slim AS deps
-WORKDIR /app
-
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm ci && npm cache clean --force
-
-# Stage 2: Builder
+# Stage 1: Builder
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies with native module build support
+RUN npm ci
+
+# Copy application code
 COPY . .
 
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Rebuild native modules for the current platform
-RUN npm rebuild lightningcss --verbose
-
 # Build Next.js application
 RUN npm run build
 
-# Stage 3: Runner
+# Stage 2: Runner
 FROM node:20-slim AS runner
 WORKDIR /app
 
