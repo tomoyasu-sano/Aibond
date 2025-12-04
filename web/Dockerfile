@@ -11,6 +11,9 @@ COPY package.json package-lock.json* ./
 # Install dependencies with native module build support
 RUN npm ci
 
+# Force reinstall lightningcss to rebuild native binaries
+RUN rm -rf node_modules/lightningcss && npm install lightningcss --no-save
+
 # Copy application code
 COPY . .
 
