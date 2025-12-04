@@ -203,8 +203,8 @@ export default function LandingPage() {
                 <div className="relative rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 w-full h-full group">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10"></div>
                   <Image
-                    src="/hero-couple.png"
-                    alt="幸せなカップルの会話"
+                    src="/hero-couple-cafe.png"
+                    alt="カフェで楽しく会話するカップルとAibond"
                     fill
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                     priority

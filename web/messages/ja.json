@@ -767,7 +767,7 @@
     "refund": "返品・返金",
     "refundValue": "デジタルコンテンツのため、原則として返金には応じかねます。サービス側の瑕疵による利用不可の場合は個別に対応いたします。",
     "operatingEnv": "動作環境",
-    "operatingEnvValue": "モダンブラウザ（Chrome、Safari、Edge等の最新版）、マイク付きデバイス",
+    "operatingEnvValue": "モダンブラウザ（Chrome、Edge等の最新版）、マイク付きデバイス",
     "backToSettings": "設定へ戻る",
     "backToSignup": "新規登録へ戻る",
     "termsLink": "利用規約",
