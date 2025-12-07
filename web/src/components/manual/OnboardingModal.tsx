@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ONBOARDING_QUESTIONS } from "@/lib/manual/config";
 import type { ManualItem } from "@/types/manual";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -39,7 +38,16 @@ export function OnboardingModal({
   const [answers, setAnswers] = useState<string[]>(Array(5).fill(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currentQuestion = ONBOARDING_QUESTIONS[currentStep];
+  // Build questions array from translations
+  const onboardingQuestions = useMemo(() => [
+    { category: "basic", question: t("onboardingQ1"), placeholder: t("onboardingQ1Placeholder") },
+    { category: "basic", question: t("onboardingQ2"), placeholder: t("onboardingQ2Placeholder") },
+    { category: "hobbies", question: t("onboardingQ3"), placeholder: t("onboardingQ3Placeholder") },
+    { category: "hobbies", question: t("onboardingQ4"), placeholder: t("onboardingQ4Placeholder") },
+    { category: "lifestyle", question: t("onboardingQ5"), placeholder: t("onboardingQ5Placeholder") },
+  ], [t]);
+
+  const currentQuestion = onboardingQuestions[currentStep];
 
   const handleNext = async () => {
     if (currentStep < 4) {
@@ -56,13 +64,13 @@ export function OnboardingModal({
       // 5つの質問と回答を一括で保存
       const createdItems: ManualItem[] = [];
 
-      for (let i = 0; i < ONBOARDING_QUESTIONS.length; i++) {
-        const question = ONBOARDING_QUESTIONS[i];
+      for (let i = 0; i < onboardingQuestions.length; i++) {
+        const question = onboardingQuestions[i];
         const answer = answers[i];
 
         if (!answer.trim()) continue;
 
-        const res = await fetch("/api/manual", {
+        const res = await fetch("/api/manual/items", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -70,13 +78,12 @@ export function OnboardingModal({
             category: question.category,
             question: question.question,
             answer: answer.trim(),
-            partnership_id: partnershipId,
           }),
         });
 
         if (res.ok) {
           const data = await res.json();
-          createdItems.push(data.item);
+          createdItems.push(data);
         }
       }
 
@@ -105,9 +112,9 @@ export function OnboardingModal({
     <Dialog open={isOpen} onOpenChange={handleReset}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl">📖 取説を作りましょう</DialogTitle>
+          <DialogTitle className="text-xl">{t("onboardingTitle")}</DialogTitle>
           <DialogDescription>
-            まずは簡単な質問に答えて、取説の「紙」を作ってみましょう
+            {t("onboardingDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -115,7 +122,7 @@ export function OnboardingModal({
           {/* プログレスバー */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>質問 {currentStep + 1} / 5</span>
+              <span>{t("onboardingProgress", { current: currentStep + 1, total: 5 })}</span>
               <span>{Math.round(((currentStep + 1) / 5) * 100)}%</span>
             </div>
             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
@@ -164,11 +171,11 @@ export function OnboardingModal({
         <DialogFooter className="flex-row justify-between sm:justify-between">
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleReset} disabled={isSubmitting}>
-              キャンセル
+              {t("onboardingCancel")}
             </Button>
             {currentStep > 0 && (
               <Button variant="ghost" onClick={handlePrevious} disabled={isSubmitting}>
-                ← 戻る
+                {t("onboardingBack")}
               </Button>
             )}
           </div>
@@ -176,7 +183,7 @@ export function OnboardingModal({
             onClick={handleNext}
             disabled={!answers[currentStep].trim() || isSubmitting}
           >
-            {isSubmitting ? "保存中..." : currentStep < 4 ? "次へ →" : "完了 ✓"}
+            {isSubmitting ? t("onboardingSaving") : currentStep < 4 ? t("onboardingNext") : t("onboardingComplete")}
           </Button>
         </DialogFooter>
       </DialogContent>

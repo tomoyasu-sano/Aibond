@@ -6,7 +6,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { generateTalkSummary, generateBondNoteItems } from "@/lib/gemini/client";
+import { generateIntegratedSummary } from "@/lib/gemini/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -89,21 +89,19 @@ export async function POST(request: NextRequest) {
 
     console.log("[Summary] Messages count:", messagesWithNames.length);
 
-    // サマリー生成
-    const summaryResult = await generateTalkSummary(messagesWithNames);
+    // 既存の継続中のテーマを取得（パートナーシップがある場合）
+    let existingTopics: { id: string; title: string }[] = [];
+    let formattedRecentItems: any[] = [];
+    let existingManualItems: { question: string; answer: string; category: string }[] = [];
 
-    console.log("[Summary] Generated:", summaryResult.summary.substring(0, 100));
-
-    // 絆ノート項目生成（partnership_idがある場合のみ）
-    let bondNoteItems: any[] = [];
     if (talk.partnership_id) {
-      // 既存の継続中のテーマを取得
-      const { data: existingTopics } = await supabase
+      const { data: topics } = await supabase
         .from("kizuna_topics")
         .select("id, title")
         .eq("partnership_id", talk.partnership_id)
         .eq("status", "active")
         .order("updated_at", { ascending: false });
+      existingTopics = topics || [];
 
       // 過去の絆ノート項目を取得（学習用）
       const { data: recentItems } = await supabase
@@ -120,34 +118,60 @@ export async function POST(request: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(30);
 
-      // データを整形
-      const formattedRecentItems = recentItems?.map((item: any) => ({
+      formattedRecentItems = recentItems?.map((item: any) => ({
         topic_title: item.kizuna_topics.title,
         type: item.type,
         assignee: item.assignee,
         review_period: item.review_period,
         content: item.content,
       })) || [];
-
-      // 絆ノート項目を生成
-      const bondNoteResult = await generateBondNoteItems(
-        messagesWithNames,
-        existingTopics || [],
-        formattedRecentItems
-      );
-
-      bondNoteItems = bondNoteResult.items;
-      console.log("[Summary] Generated bond note items:", bondNoteItems.length);
     }
 
-    // トークを更新
+    // 既存の取説項目を取得（重複チェック用）
+    const { data: manualItems } = await supabase
+      .from("manual_items")
+      .select("question, answer, category")
+      .eq("user_id", talk.owner_user_id)
+      .order("updated_at", { ascending: false })
+      .limit(50);
+
+    existingManualItems = (manualItems || []).map((item) => ({
+      question: item.question,
+      answer: item.answer || "",
+      category: item.category,
+    }));
+
+    // 統合サマリー生成（サマリー + 絆ノート + 取説を一度に生成）
+    const result = await generateIntegratedSummary(
+      messagesWithNames,
+      existingTopics,
+      formattedRecentItems,
+      existingManualItems
+    );
+
+    console.log("[Summary] Generated summary:", result.summary.substring(0, 100));
+    console.log("[Summary] Generated bond note items:", result.bondNoteItems.length);
+    console.log("[Summary] Generated manual items:", result.manualItems.length);
+
+    // パートナーシップがない場合は絆ノートをクリア
+    const pendingBondNotes = talk.partnership_id && result.bondNoteItems.length > 0
+      ? result.bondNoteItems
+      : null;
+
+    // 取説項目がある場合のみ保存
+    const pendingManualItems = result.manualItems.length > 0
+      ? result.manualItems
+      : null;
+
+    // トークを更新（pending_bond_notes と pending_manual_items も保存）
     const { error: updateError } = await supabase
       .from("talks")
       .update({
-        summary: summaryResult.summary,
-        promises: summaryResult.promises,
-        next_topics: summaryResult.nextTopics,
+        summary: result.summary,
+        next_topics: result.nextTopics,
         summary_status: "generated",
+        pending_bond_notes: pendingBondNotes,
+        pending_manual_items: pendingManualItems,
       })
       .eq("id", talkId);
 
@@ -159,32 +183,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 約束をpromisesテーブルにも保存
-    if (summaryResult.promises.length > 0 && talk.partnership_id) {
-      const promisesToInsert = summaryResult.promises.map((p) => ({
-        owner_user_id: user.id,
-        partnership_id: talk.partnership_id,
-        talk_id: talkId,
-        content: p.content,
-        is_completed: false,
-        is_manual: false,
-      }));
-
-      const { error: promisesError } = await supabase
-        .from("promises")
-        .insert(promisesToInsert);
-
-      if (promisesError) {
-        console.error("[Summary] Error inserting promises:", promisesError);
-        // 約束の保存に失敗してもサマリー生成は成功とする
-      }
-    }
-
     return NextResponse.json({
-      summary: summaryResult.summary,
-      promises: summaryResult.promises,
-      nextTopics: summaryResult.nextTopics,
-      bondNoteItems: bondNoteItems,
+      summary: result.summary,
+      nextTopics: result.nextTopics,
+      bondNoteItems: result.bondNoteItems,
+      manualItems: result.manualItems,
       partnershipId: talk.partnership_id,
     });
   } catch (error) {

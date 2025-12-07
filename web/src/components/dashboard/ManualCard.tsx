@@ -77,18 +77,6 @@ export async function ManualCard({ userId, partnershipId }: ManualCardProps) {
         <CardDescription>2人の取扱を作ろう</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2 mb-4">
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-muted-foreground">📚 {t("yourManual")}</span>
-            <span className="font-medium">{myItemsCount || 0}{t("items")}</span>
-          </div>
-          {partnershipId && (
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">📕 {partnerName || t("partner")}</span>
-              <span className="font-medium">{partnerItemsCount}{t("items")}</span>
-            </div>
-          )}
-        </div>
         <Link href="/manual">
           <Button variant="outline" className="w-full">
             取説を作る

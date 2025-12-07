@@ -5,7 +5,7 @@
  * 会話内の全ての話者タグを入れ替える（1 ↔ 2）
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -86,12 +86,15 @@ export async function POST(
 
     console.log(`[Swap Speakers] Found ${messages.length} messages to swap`);
 
+    // adminClientを使用してRLSをバイパス
+    const adminClient = createAdminClient();
+
     // 各メッセージの話者タグを入れ替え
     let swappedCount = 0;
     for (const message of messages) {
       const newSpeakerTag = message.speaker_tag === 1 ? 2 : 1;
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await adminClient
         .from("talk_messages")
         .update({ speaker_tag: newSpeakerTag })
         .eq("id", message.id);

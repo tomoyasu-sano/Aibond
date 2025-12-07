@@ -20,11 +20,10 @@ function convertLanguageCode(lang: string): string {
   const mapping: Record<string, string> = {
     ja: "ja-JP",
     en: "en-US",
-    es: "es-ES",
-    fr: "fr-FR",
-    de: "de-DE",
-    zh: "zh-CN",
+    zh: "cmn-Hans-CN", // 中国語（簡体字）
     ko: "ko-KR",
+    es: "es-ES",
+    pt: "pt-BR", // ポルトガル語（ブラジル）
   };
   return mapping[lang] || "ja-JP";
 }
@@ -259,21 +258,36 @@ export async function GET(request: NextRequest) {
 
         // エラーハンドリング
         sttStream.on("error", (error: any) => {
+          const errorCode = error.code;
+          const errorMessage = error.message || "STT stream error";
+
           console.error("[STT Stream] STT stream error", {
-            message: error.message,
-            code: error.code,
+            message: errorMessage,
+            code: errorCode,
+            sessionId,
           });
 
+          // タイムアウトエラー（ABORTED）の場合は警告レベルで処理
+          // 録音終了処理は続行されるので、致命的なエラーではない
+          if (errorCode === 10 || errorMessage.includes("timed out")) {
+            console.log("[STT Stream] Stream timed out - this is expected if recording was stopped");
+            // タイムアウトは致命的ではないので、エラーイベントを送らない
+            // 録音終了処理が別途実行される
+            return;
+          }
+
           const errorData = `event: error\ndata: ${JSON.stringify({
-            message: error.message || "STT stream error",
-            code: error.code,
+            message: errorMessage,
+            code: errorCode,
           })}\n\n`;
 
           safeEnqueue(encoder.encode(errorData));
         });
 
         sttStream.on("end", () => {
-          console.log("[STT Stream] STT stream ended", { sessionId });
+          console.log("[STT Stream] STT stream ended gracefully", { sessionId });
+          // セッションをクリーンアップ
+          sessionStore.delete(sessionId);
         });
 
         // ハートビート（30秒ごと）

@@ -21,29 +21,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // パートナーシップを取得
+    // パートナーシップを取得（history_deleted_at が設定されていても取得）
     const { data: partnership } = await supabase
       .from("partnerships")
-      .select("id")
+      .select("id, history_deleted_at")
       .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
       .eq("status", "active")
       .single();
 
-    if (!partnership) {
-      return NextResponse.json({
-        reviews: [],
-        feedbacks: [],
-        stats: {
-          total_topics: 0,
-          resolved_topics: 0,
-          completed_promises: 0,
-          total_feedbacks: 0,
-        },
-      });
-    }
+    const historyDeletedAt = partnership?.history_deleted_at;
 
-    // レビュー履歴を取得
-    const { data: reviews } = await supabase
+    // レビュー履歴を取得（論理削除されたトピックは除外）
+    let reviewsQuery = supabase
       .from("kizuna_reviews")
       .select(`
         id,
@@ -57,16 +46,32 @@ export async function GET(request: NextRequest) {
           kizuna_topics!inner (
             id,
             title,
-            partnership_id
+            partnership_id,
+            created_by,
+            deleted_at,
+            created_at
           )
         )
       `)
-      .eq("kizuna_items.kizuna_topics.partnership_id", partnership.id)
+      .is("kizuna_items.kizuna_topics.deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50);
 
-    // フィードバック履歴を取得
-    const { data: feedbacks } = await supabase
+    if (partnership) {
+      reviewsQuery = reviewsQuery.eq("kizuna_items.kizuna_topics.partnership_id", partnership.id);
+      if (historyDeletedAt) {
+        reviewsQuery = reviewsQuery.gt("kizuna_items.kizuna_topics.created_at", historyDeletedAt);
+      }
+    } else {
+      reviewsQuery = reviewsQuery
+        .is("kizuna_items.kizuna_topics.partnership_id", null)
+        .eq("kizuna_items.kizuna_topics.created_by", user.id);
+    }
+
+    const { data: reviews } = await reviewsQuery;
+
+    // フィードバック履歴を取得（論理削除されたトピックは除外）
+    let feedbacksQuery = supabase
       .from("kizuna_feedbacks")
       .select(`
         id,
@@ -81,50 +86,104 @@ export async function GET(request: NextRequest) {
           kizuna_topics!inner (
             id,
             title,
-            partnership_id
+            partnership_id,
+            created_by,
+            deleted_at,
+            created_at
           )
         )
       `)
-      .eq("kizuna_items.kizuna_topics.partnership_id", partnership.id)
+      .is("kizuna_items.kizuna_topics.deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50);
 
-    // 統計を取得
-    const { count: totalTopics } = await supabase
+    if (partnership) {
+      feedbacksQuery = feedbacksQuery.eq("kizuna_items.kizuna_topics.partnership_id", partnership.id);
+      if (historyDeletedAt) {
+        feedbacksQuery = feedbacksQuery.gt("kizuna_items.kizuna_topics.created_at", historyDeletedAt);
+      }
+    } else {
+      feedbacksQuery = feedbacksQuery
+        .is("kizuna_items.kizuna_topics.partnership_id", null)
+        .eq("kizuna_items.kizuna_topics.created_by", user.id);
+    }
+
+    const { data: feedbacks } = await feedbacksQuery;
+
+    // 統計を取得（論理削除されたトピックは除外）
+    let totalTopicsQuery = supabase
       .from("kizuna_topics")
       .select("*", { count: "exact", head: true })
-      .eq("partnership_id", partnership.id);
+      .is("deleted_at", null);
 
-    const { count: resolvedTopics } = await supabase
+    let resolvedTopicsQuery = supabase
       .from("kizuna_topics")
       .select("*", { count: "exact", head: true })
-      .eq("partnership_id", partnership.id)
-      .eq("status", "resolved");
+      .eq("status", "resolved")
+      .is("deleted_at", null);
 
-    const { count: completedPromises } = await supabase
+    let completedPromisesQuery = supabase
       .from("kizuna_items")
-      .select("*, kizuna_topics!inner(*)", { count: "exact", head: true })
-      .eq("kizuna_topics.partnership_id", partnership.id)
+      .select("*, kizuna_topics!inner(deleted_at, created_at)", { count: "exact", head: true })
       .eq("type", "promise")
-      .eq("status", "completed");
+      .eq("status", "completed")
+      .is("kizuna_topics.deleted_at", null);
 
-    const { count: totalFeedbacks } = await supabase
+    let totalFeedbacksQuery = supabase
       .from("kizuna_feedbacks")
-      .select("*, kizuna_items!inner(*, kizuna_topics!inner(*))", { count: "exact", head: true })
-      .eq("kizuna_items.kizuna_topics.partnership_id", partnership.id);
+      .select("*, kizuna_items!inner(*, kizuna_topics!inner(deleted_at, created_at))", { count: "exact", head: true })
+      .is("kizuna_items.kizuna_topics.deleted_at", null);
 
-    // レビュー結果の内訳
-    const { data: reviewStats } = await supabase
+    let reviewStatsQuery = supabase
       .from("kizuna_reviews")
       .select(`
         result,
         kizuna_items!inner (
           kizuna_topics!inner (
-            partnership_id
+            partnership_id,
+            created_by,
+            deleted_at,
+            created_at
           )
         )
       `)
-      .eq("kizuna_items.kizuna_topics.partnership_id", partnership.id);
+      .is("kizuna_items.kizuna_topics.deleted_at", null);
+
+    if (partnership) {
+      totalTopicsQuery = totalTopicsQuery.eq("partnership_id", partnership.id);
+      resolvedTopicsQuery = resolvedTopicsQuery.eq("partnership_id", partnership.id);
+      completedPromisesQuery = completedPromisesQuery.eq("kizuna_topics.partnership_id", partnership.id);
+      totalFeedbacksQuery = totalFeedbacksQuery.eq("kizuna_items.kizuna_topics.partnership_id", partnership.id);
+      reviewStatsQuery = reviewStatsQuery.eq("kizuna_items.kizuna_topics.partnership_id", partnership.id);
+
+      if (historyDeletedAt) {
+        totalTopicsQuery = totalTopicsQuery.gt("created_at", historyDeletedAt);
+        resolvedTopicsQuery = resolvedTopicsQuery.gt("created_at", historyDeletedAt);
+        completedPromisesQuery = completedPromisesQuery.gt("kizuna_topics.created_at", historyDeletedAt);
+        totalFeedbacksQuery = totalFeedbacksQuery.gt("kizuna_items.kizuna_topics.created_at", historyDeletedAt);
+        reviewStatsQuery = reviewStatsQuery.gt("kizuna_items.kizuna_topics.created_at", historyDeletedAt);
+      }
+    } else {
+      totalTopicsQuery = totalTopicsQuery.is("partnership_id", null).eq("created_by", user.id);
+      resolvedTopicsQuery = resolvedTopicsQuery.is("partnership_id", null).eq("created_by", user.id);
+      completedPromisesQuery = completedPromisesQuery.is("kizuna_topics.partnership_id", null).eq("kizuna_topics.created_by", user.id);
+      totalFeedbacksQuery = totalFeedbacksQuery.is("kizuna_items.kizuna_topics.partnership_id", null).eq("kizuna_items.kizuna_topics.created_by", user.id);
+      reviewStatsQuery = reviewStatsQuery.is("kizuna_items.kizuna_topics.partnership_id", null).eq("kizuna_items.kizuna_topics.created_by", user.id);
+    }
+
+    const [
+      { count: totalTopics },
+      { count: resolvedTopics },
+      { count: completedPromises },
+      { count: totalFeedbacks },
+      { data: reviewStats },
+    ] = await Promise.all([
+      totalTopicsQuery,
+      resolvedTopicsQuery,
+      completedPromisesQuery,
+      totalFeedbacksQuery,
+      reviewStatsQuery,
+    ]);
 
     const reviewBreakdown = {
       completed: 0,

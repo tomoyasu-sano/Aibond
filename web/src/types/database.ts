@@ -8,13 +8,7 @@ export type LanguageCode =
   | "zh" // 中文
   | "ko" // 한국어
   | "es" // Español
-  | "fr" // Français
-  | "de" // Deutsch
-  | "pt" // Português
-  | "vi" // Tiếng Việt
-  | "th" // ไทย
-  | "id" // Bahasa Indonesia
-  | "tl"; // Filipino
+  | "pt"; // Português
 
 export const LANGUAGES: { code: LanguageCode; name: string; nativeName: string }[] = [
   { code: "ja", name: "Japanese", nativeName: "日本語" },
@@ -22,13 +16,7 @@ export const LANGUAGES: { code: LanguageCode; name: string; nativeName: string }
   { code: "zh", name: "Chinese", nativeName: "中文" },
   { code: "ko", name: "Korean", nativeName: "한국어" },
   { code: "es", name: "Spanish", nativeName: "Español" },
-  { code: "fr", name: "French", nativeName: "Français" },
-  { code: "de", name: "German", nativeName: "Deutsch" },
   { code: "pt", name: "Portuguese", nativeName: "Português" },
-  { code: "vi", name: "Vietnamese", nativeName: "Tiếng Việt" },
-  { code: "th", name: "Thai", nativeName: "ไทย" },
-  { code: "id", name: "Indonesian", nativeName: "Bahasa Indonesia" },
-  { code: "tl", name: "Filipino", nativeName: "Filipino" },
 ];
 
 export interface UserProfile {

@@ -27,10 +27,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'target_user_id is required' }, { status: 400 });
     }
 
-    // manual_coversテーブルから取得
+    // manual_coversテーブルから取得（updated_atも取得してキャッシュバスティング用に使用）
     const { data, error } = await supabase
       .from('manual_covers')
-      .select('cover_image_url')
+      .select('cover_image_url, updated_at')
       .eq('user_id', user.id)
       .eq('target_user_id', targetUserId)
       .single();
@@ -44,7 +44,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch cover image' }, { status: 500 });
     }
 
-    return NextResponse.json({ url: data.cover_image_url });
+    // キャッシュバスティング: URLにバージョンパラメータを付与
+    let url = data.cover_image_url;
+    if (url && data.updated_at) {
+      const version = new Date(data.updated_at).getTime();
+      url = `${url}?v=${version}`;
+    }
+
+    return NextResponse.json({ url });
   } catch (error) {
     console.error('Unexpected error in GET /api/manual/cover-image:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -82,9 +89,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'target_user_id is required' }, { status: 400 });
     }
 
-    // ファイル名を生成（現在のユーザーID/対象ユーザーID/cover.ext の形式）
+    // ファイル名を生成（現在のユーザーID/対象ユーザーID/cover.<timestamp>.ext の形式）
+    // タイムスタンプを付けることでキャッシュ衝突を回避
     const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${targetUserId}/cover.${fileExt}`;
+    const timestamp = Date.now();
+    const basePath = `${user.id}/${targetUserId}`;
+    const fileName = `${basePath}/cover.${timestamp}.${fileExt}`;
+
+    // 既存のカバー画像を削除（タイムスタンプ付きで複数ファイルが溜まるのを防ぐ）
+    try {
+      const { data: existingFiles } = await supabase.storage
+        .from('manual-covers')
+        .list(basePath);
+
+      if (existingFiles && existingFiles.length > 0) {
+        const filePaths = existingFiles.map(f => `${basePath}/${f.name}`);
+        await supabase.storage.from('manual-covers').remove(filePaths);
+      }
+    } catch (e) {
+      // 削除失敗しても続行
+      console.log('Failed to delete existing cover images:', e);
+    }
 
     // Supabase Storageにアップロード
     const { data: uploadData, error: uploadError } = await supabase.storage

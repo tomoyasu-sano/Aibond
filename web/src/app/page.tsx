@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
+import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeartCrack, MessageSquareDashed, CalendarX, MessageCircleMore, Users, Hourglass } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 // Feature icons as simple components
 function MicIcon({ className }: { className?: string }) {
@@ -34,15 +36,6 @@ function SparklesIcon({ className }: { className?: string }) {
   );
 }
 
-function CheckCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
-  );
-}
-
 function CheckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -51,83 +44,121 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
-const features = [
-  {
-    icon: MicIcon,
-    title: "リアルタイム文字起こし + 翻訳",
-    description: "会話をリアルタイムで文字に起こし、パートナーの言語に翻訳。言葉の壁を越えてスムーズにコミュニケーション。",
-    image: "/feature-translation.png"
-  },
-  {
-    icon: UsersIcon,
-    title: "誰が話したか明確に",
-    description: "AI話者識別機能で、誰が何を話したかを自動で判別。「言った・言わない」の水掛け論を防ぎます。",
-    image: "/feature-speaker.png"
-  },
-  {
-    icon: SparklesIcon,
-    title: "AIが会話を自動整理",
-    description: "会話が終わったら、AIが内容を要約。大切なポイントを見逃しません。",
-    image: "/feature-ai.png"
-  },
-  {
-    icon: CheckCircleIcon,
-    title: "約束を忘れない",
-    description: "会話中の約束事をAIが自動抽出。リスト化して管理できるので、大切な約束を忘れません。",
-    image: "/feature-promises.png"
-  },
-];
+export default async function LandingPage() {
+  const t = await getTranslations("landingPage");
 
-const plans = [
-  {
-    name: "Free",
-    price: "¥0",
-    period: "",
-    description: "まずは試してみたい方に",
-    features: [
-      "月2時間まで会話記録",
-      "リアルタイム翻訳",
-      "話者識別",
-      "AIサマリー",
-      "AI相談機能",
-    ],
-    cta: "無料で始める",
-    highlighted: false,
-  },
-  {
-    name: "スタンダード",
-    price: "¥1,980",
-    period: "/月",
-    description: "週1回以上会話する方に",
-    features: [
-      "月15時間まで会話記録",
-      "リアルタイム翻訳",
-      "話者識別",
-      "AIサマリー",
-      "AI相談機能",
-    ],
-    cta: "スタンダードを始める",
-    highlighted: true,
-  },
-  {
-    name: "プレミアム",
-    price: "¥4,980",
-    period: "/月",
-    description: "無制限で使いたい方に",
-    features: [
-      "無制限の会話記録",
-      "リアルタイム翻訳",
-      "話者識別",
-      "AIサマリー",
-      "AI相談機能",
-      "優先サポート",
-    ],
-    cta: "プレミアムを始める",
-    highlighted: false,
-  },
-];
+  const features = [
+    {
+      icon: SparklesIcon,
+      titleKey: "feature1Title",
+      descriptionKey: "feature1Description",
+      image: "/feature-ai.png"
+    },
+    {
+      icon: UsersIcon,
+      titleKey: "feature2Title",
+      descriptionKey: "feature2Description",
+      image: "/feature-speaker.png"
+    },
+    {
+      icon: MessageCircleMore,
+      titleKey: "feature3Title",
+      descriptionKey: "feature3Description",
+      image: "/feature-promises.png"
+    },
+    {
+      icon: MicIcon,
+      titleKey: "feature4Title",
+      descriptionKey: "feature4Description",
+      image: "/feature-translation.png"
+    }
+  ];
 
-export default function LandingPage() {
+  const useCases = [
+    {
+      icon: MessageSquareDashed,
+      titleKey: "useCase1Title",
+      descriptionKey: "useCase1Description",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10"
+    },
+    {
+      icon: CalendarX,
+      titleKey: "useCase2Title",
+      descriptionKey: "useCase2Description",
+      color: "text-orange-500",
+      bg: "bg-orange-500/10"
+    },
+    {
+      icon: HeartCrack,
+      titleKey: "useCase3Title",
+      descriptionKey: "useCase3Description",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10"
+    },
+    {
+      icon: Hourglass,
+      titleKey: "useCase4Title",
+      descriptionKey: "useCase4Description",
+      color: "text-purple-500",
+      bg: "bg-purple-500/10"
+    },
+    {
+      icon: MessageCircleMore,
+      titleKey: "useCase5Title",
+      descriptionKey: "useCase5Description",
+      color: "text-green-500",
+      bg: "bg-green-500/10"
+    },
+    {
+      icon: Users,
+      titleKey: "useCase6Title",
+      descriptionKey: "useCase6Description",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10"
+    }
+  ];
+
+  const plans = [
+    {
+      nameKey: "planFree",
+      price: "¥0",
+      periodKey: "",
+      descriptionKey: "freeReason",
+      features: ["planFeature1Free", "planFeature2", "planFeature3", "planFeature4", "planFeature8", "planFeature9"],
+      unavailableFeatures: ["planFeature5", "planFeature7"],
+      ctaKey: "planCtaFree",
+      highlighted: false,
+    },
+    {
+      nameKey: "planStandard",
+      price: "¥1,980",
+      periodKey: "perMonth",
+      descriptionKey: "standardReason",
+      features: ["planFeature1Standard", "planFeature2", "planFeature3", "planFeature4", "planFeature8", "planFeature9", "planFeature5", "planFeature7"],
+      ctaKey: "planCtaStandard",
+      highlighted: true,
+    },
+    {
+      nameKey: "planPremium",
+      price: "¥4,980",
+      periodKey: "perMonth",
+      descriptionKey: "premiumReason",
+      features: ["planFeature1Premium", "planFeature2", "planFeature3", "planFeature4", "planFeature8", "planFeature9", "planFeature5", "planFeature6", "planFeature7"],
+      ctaKey: "planCtaPremium",
+      highlighted: false,
+    },
+  ];
+
+  const faqs = [
+    { questionKey: "faq1Question", answerKey: "faq1Answer" },
+    { questionKey: "faq2Question", answerKey: "faq2Answer" },
+    { questionKey: "faq3Question", answerKey: "faq3Answer" },
+    { questionKey: "faq4Question", answerKey: "faq4Answer" },
+    { questionKey: "faq5Question", answerKey: "faq5Answer" },
+    { questionKey: "faq6Question", answerKey: "faq6Answer" },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       {/* Header */}
@@ -138,13 +169,14 @@ export default function LandingPage() {
               Aibond
             </span>
           </Link>
-          <nav className="flex items-center gap-4">
+          <nav className="flex items-center gap-2 sm:gap-4 ml-auto">
+            <LanguageSwitcher />
             <Link href="/login">
-              <Button variant="ghost">ログイン</Button>
+              <Button variant="ghost" size="sm" className="sm:size-default">{t("login")}</Button>
             </Link>
             <Link href="/signup">
-              <Button className="shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300">
-                無料で始める
+              <Button size="sm" className="sm:size-default shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300">
+                {t("heroCta")}
               </Button>
             </Link>
           </nav>
@@ -160,51 +192,62 @@ export default function LandingPage() {
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }}></div>
 
-          <div className="container relative z-10 mx-auto px-4 py-20 md:py-32">
-            <div className="grid gap-12 lg:grid-cols-2 items-center">
-              <div className="flex flex-col justify-center space-y-8 animate-fade-in-up">
+          <div className="container relative z-10 mx-auto px-4 pt-12 pb-20 md:pt-16 md:pb-32">
+            <div className="grid gap-12 lg:gap-8 lg:grid-cols-2 items-center">
+              <div className="flex flex-col justify-center items-center space-y-8 animate-fade-in-up text-center">
                 <div className="space-y-4">
                   <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-600 to-rose-500 animate-gradient">
-                    ふたりにもっと
+                    {t("heroTitle1")}
                     <br />
-                    「分かりあえる」を
+                    {t("heroTitle2")}
                   </h1>
-                  <p className="max-w-[600px] text-muted-foreground md:text-xl leading-relaxed">
-                    Aibondは、ふたりの会話を記録、分析し、絆を深めるAIパートナー<br />
+                  <p className="max-w-[600px] mx-auto text-muted-foreground md:text-xl leading-relaxed">
+                    {t.rich("heroDescription", {
+                      highlight: (chunks) => <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-600 to-rose-500 font-semibold">{chunks}</span>
+                    })}
                     <br />
-                    約束事リストの自動作成、お互いの「トリセツ」を作成、パートナー相談にて、より良い関係づくりをサポートします
+                    <br />
+                    {t.rich("heroDescription2", {
+                      strong: (chunks) => <strong>{chunks}</strong>
+                    })}
                   </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
                   <Link href="/signup">
                     <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:scale-105 transition-all duration-300 w-full sm:w-auto">
-                      無料で始める
+                      {t("heroCta")}
                     </Button>
                   </Link>
                   <Link href="#features">
                     <Button variant="outline" size="lg" className="text-lg px-8 py-6 hover:bg-muted/50 w-full sm:w-auto">
-                      機能を見る
+                      {t("seeFeatures")}
                     </Button>
                   </Link>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
                   <div className="flex -space-x-2">
                     {[1, 2, 3, 4].map((i) => (
                       <div key={i} className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center overflow-hidden">
-                        <div className={`w-full h-full bg-gradient-to-br from-primary/${20 + i * 10} to-pink-500/${20 + i * 10}`}></div>
+                        <Image
+                          src={`/avatar-${i}.jpg`}
+                          alt={`User ${i}`}
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                     ))}
                   </div>
-                  <p>多くのカップルが愛用中</p>
+                  <p>{t("socialProof")}</p>
                 </div>
               </div>
-              <div className="relative mx-auto lg:ml-auto w-full max-w-[500px] aspect-[4/3] lg:aspect-square">
+              <div className="relative mx-auto w-full max-w-[500px] aspect-[4/3] lg:aspect-square">
                 <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-pink-500/20 rounded-[2rem] transform rotate-3 scale-105 blur-2xl"></div>
                 <div className="relative rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 w-full h-full group">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10"></div>
                   <Image
                     src="/hero-couple-cafe.png"
-                    alt="カフェで楽しく会話するカップルとAibond"
+                    alt="Aibond"
                     fill
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                     priority
@@ -215,11 +258,11 @@ export default function LandingPage() {
                     <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-lg transform transition-all duration-500 hover:-translate-y-1">
                       <div className="flex items-center gap-3 mb-2">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <p className="text-xs font-medium text-muted-foreground">AI分析中...</p>
+                        <p className="text-xs font-medium text-muted-foreground">{t("aiAnalyzing")}</p>
                       </div>
                       <p className="text-sm font-medium text-foreground">
-                        「あなたは料理が得意だから料理、私はお皿洗いの分担でどう?」
-                        <span className="block text-xs text-primary mt-1">→ 絆ノート：家事分担の担当をそれぞれ設定しました</span>
+                        {t("heroSampleText")}
+                        <span className="block text-xs text-primary mt-1">{t("heroSampleResult")}</span>
                       </p>
                     </div>
                   </div>
@@ -234,41 +277,16 @@ export default function LandingPage() {
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-2xl text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">
-                ふたりの絆を深める機能
+                {t("featuresSection")}
               </h2>
               <p className="text-lg text-muted-foreground">
-                ただの記録ツールではありません。<br />
-                Aibondは、ふたりの理解を深め、より良い関係を築くためのツールです。
+                {t("featuresDescription")}<br />
+                {t("featuresDescription2")}
               </p>
             </div>
 
             <div className="grid gap-8 md:grid-cols-2">
-              {[
-                {
-                  icon: SparklesIcon,
-                  title: "AI要約 & 絆ノート",
-                  description: "話し合いの内容をAIが自動で要約。「言った・言わない」をなくします。決まった約束やタスクは「絆ノート」に自動転記され、リマインドも行います。",
-                  image: "/feature-ai.png"
-                },
-                {
-                  icon: UsersIcon,
-                  title: "ふたりの「トリセツ」作成",
-                  description: "日々の会話から、パートナーの性格や好みをAIが分析。あなただけの「取扱説明書」を自動で作成・更新し、相手への理解を深めます。",
-                  image: "/feature-speaker.png"
-                },
-                {
-                  icon: MessageCircleMore,
-                  title: "AIパートナー相談",
-                  description: "「最近喧嘩が多い…」そんな時はAIに相談。過去の会話履歴やトリセツをもとに、ふたりの関係を改善するための客観的なアドバイスをくれます。",
-                  image: "/feature-promises.png"
-                },
-                {
-                  icon: MicIcon,
-                  title: "リアルタイム翻訳 & 記録",
-                  description: "言葉の壁があるカップルも安心。高精度なリアルタイム翻訳で会話をサポートします。母国語同士のカップルも、文字起こし機能として活用できます。",
-                  image: "/feature-translation.png"
-                }
-              ].map((feature, index) => (
+              {features.map((feature, index) => (
                 <Card
                   key={index}
                   className="group relative overflow-hidden border-border/50 bg-background/50 backdrop-blur-sm transition-all duration-500 hover:shadow-2xl hover:border-primary/50 hover:-translate-y-1"
@@ -279,7 +297,7 @@ export default function LandingPage() {
                       <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent z-10 opacity-60"></div>
                       <Image
                         src={feature.image}
-                        alt={feature.title}
+                        alt={t(feature.titleKey as any)}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform duration-700"
                       />
@@ -289,11 +307,11 @@ export default function LandingPage() {
                     <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-pink-500/20 group-hover:from-primary/30 group-hover:to-pink-500/30 transition-all duration-300 shadow-inner">
                       <feature.icon className="h-7 w-7 text-primary group-hover:scale-110 transition-transform duration-300" />
                     </div>
-                    <CardTitle className="text-2xl">{feature.title}</CardTitle>
+                    <CardTitle className="text-2xl">{t(feature.titleKey as any)}</CardTitle>
                   </CardHeader>
                   <CardContent className="relative z-20">
                     <CardDescription className="text-base leading-relaxed text-muted-foreground/90">
-                      {feature.description}
+                      {t(feature.descriptionKey as any)}
                     </CardDescription>
                   </CardContent>
                 </Card>
@@ -313,69 +331,26 @@ export default function LandingPage() {
           <div className="container mx-auto px-4 relative">
             <div className="mx-auto max-w-2xl text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">
-                こんな悩み、ありませんか？
+                {t("useCasesSection")}
               </h2>
               <p className="text-lg text-muted-foreground">
-                Aibondは、あらゆるカップルのコミュニケーション課題を解決します
+                {t("useCasesDescription")}
               </p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-              {[
-                {
-                  icon: MessageSquareDashed,
-                  title: "「言った・言わない」論争",
-                  description: "些細な記憶違いから喧嘩になってしまう。過去の会話を客観的に振り返りたい。",
-                  color: "text-rose-500",
-                  bg: "bg-rose-500/10"
-                },
-                {
-                  icon: CalendarX,
-                  title: "約束を忘れてしまう",
-                  description: "「今度ここ行こう」という口約束や、頼まれた家事をうっかり忘れて相手を失望させてしまう。",
-                  color: "text-orange-500",
-                  bg: "bg-orange-500/10"
-                },
-                {
-                  icon: HeartCrack,
-                  title: "相手の気持ちがわからない",
-                  description: "なぜ怒っているのか、どう接すればいいのかわからない。もっと相手を深く理解したい。",
-                  color: "text-blue-500",
-                  bg: "bg-blue-500/10"
-                },
-                {
-                  icon: Hourglass,
-                  title: "話し合いが平行線",
-                  description: "同じような話題で何度も喧嘩してしまう。建設的な話し合いができず、解決策が見つからない。",
-                  color: "text-purple-500",
-                  bg: "bg-purple-500/10"
-                },
-                {
-                  icon: MessageCircleMore,
-                  title: "言葉の壁がある",
-                  description: "国際カップルで、細かいニュアンスが伝わらない。もっと深い話を母国語でしたい。",
-                  color: "text-green-500",
-                  bg: "bg-green-500/10"
-                },
-                {
-                  icon: Users,
-                  title: "ふたりの歴史を残したい",
-                  description: "日々の何気ない会話や、大切な話し合いの記録を、ふたりの思い出として残しておきたい。",
-                  color: "text-amber-500",
-                  bg: "bg-amber-500/10"
-                }
-              ].map((item, index) => (
+              {useCases.map((item, index) => (
                 <Card key={index} className="group border-border/50 bg-background/60 backdrop-blur-md hover:bg-background/80 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
                   <div className={`absolute top-0 left-0 w-1 h-full ${item.bg.replace('/10', '')} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
                   <CardHeader>
                     <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl ${item.bg} ${item.color} group-hover:scale-110 transition-transform duration-300`}>
                       <item.icon className="h-6 w-6" />
                     </div>
-                    <CardTitle className="text-lg font-bold">{item.title}</CardTitle>
+                    <CardTitle className="text-lg font-bold">{t(item.titleKey as any)}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      {item.description}
+                      {t(item.descriptionKey as any)}
                     </p>
                   </CardContent>
                 </Card>
@@ -385,11 +360,11 @@ export default function LandingPage() {
             <div className="mt-12 text-center">
               <p className="text-lg font-medium mb-6 flex items-center justify-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                Aibondで、理想のパートナーシップを
+                {t("useCasesCta")}
               </p>
               <Link href="/signup">
                 <Button size="lg" className="shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-105 transition-all duration-300 rounded-full px-8">
-                  無料で始める
+                  {t("heroCta")}
                 </Button>
               </Link>
             </div>
@@ -403,17 +378,17 @@ export default function LandingPage() {
           <div className="container mx-auto px-4 relative">
             <div className="mx-auto max-w-2xl text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">
-                料金プラン
+                {t("pricingSection")}
               </h2>
               <p className="text-lg text-muted-foreground">
-                あなたに合ったプランをお選びください
+                {t("pricingDescription")}
               </p>
             </div>
 
             <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
               {plans.map((plan, index) => (
                 <Card
-                  key={plan.name}
+                  key={plan.nameKey}
                   className={`relative backdrop-blur-sm transition-all duration-300 hover:scale-105 ${plan.highlighted
                     ? "border-primary shadow-2xl shadow-primary/20 bg-gradient-to-b from-primary/5 to-background"
                     : "border-border/50 bg-background/50 hover:shadow-xl"
@@ -423,30 +398,41 @@ export default function LandingPage() {
                   {plan.highlighted && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                       <span className="rounded-full bg-gradient-to-r from-primary to-pink-500 px-5 py-1.5 text-sm font-medium text-white shadow-lg">
-                        おすすめ
+                        {t("recommended")}
                       </span>
                     </div>
                   )}
                   <CardHeader className="text-center pb-8">
-                    <CardTitle className="text-2xl mb-4">{plan.name}</CardTitle>
+                    <CardTitle className="text-2xl mb-4">{t(plan.nameKey as any)}</CardTitle>
                     <div className="mb-2">
                       <span className="text-5xl font-bold bg-gradient-to-r from-primary to-pink-500 bg-clip-text text-transparent">
                         {plan.price}
                       </span>
-                      <span className="text-muted-foreground text-lg">{plan.period}</span>
+                      <span className="text-muted-foreground text-lg">{plan.periodKey ? t(plan.periodKey as any) : ""}</span>
                     </div>
                     <CardDescription className="text-base">
-                      {plan.description}
+                      {t(plan.descriptionKey as any)}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <ul className="space-y-3">
-                      {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-center gap-3">
+                      {plan.features.map((featureKey) => (
+                        <li key={featureKey} className="flex items-center gap-3">
                           <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
                             <CheckIcon className="h-3 w-3 text-primary" />
                           </div>
-                          <span className="text-sm">{feature}</span>
+                          <span className="text-sm">{t(featureKey as any)}</span>
+                        </li>
+                      ))}
+                      {(plan as any).unavailableFeatures?.map((featureKey: string) => (
+                        <li key={featureKey} className="flex items-center gap-3 opacity-50">
+                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+                            <svg className="h-3 w-3 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 6 6 18" />
+                              <path d="m6 6 12 12" />
+                            </svg>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{t(featureKey as any)}</span>
                         </li>
                       ))}
                     </ul>
@@ -458,7 +444,7 @@ export default function LandingPage() {
                           }`}
                         variant={plan.highlighted ? "default" : "outline"}
                       >
-                        {plan.cta}
+                        {t(plan.ctaKey as any)}
                       </Button>
                     </Link>
                   </CardContent>
@@ -473,79 +459,26 @@ export default function LandingPage() {
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-2xl text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">
-                よくある質問
+                {t("faqSection")}
               </h2>
               <p className="text-lg text-muted-foreground">
-                Aibondについて、よくいただく質問にお答えします
+                {t("faqDescription")}
               </p>
             </div>
 
             <div className="max-w-3xl mx-auto space-y-4">
-              <Card className="border-0 bg-muted/50">
-                <CardHeader>
-                  <CardTitle className="text-lg">日本語同士のカップルでも使えますか？</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    はい、もちろんです。Aibondは翻訳だけでなく、会話の記録、AI要約、トリセツ作成など、ふたりの関係を深めるための機能が充実しています。多くの日本人カップルにもご利用いただいています。
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 bg-muted/50">
-                <CardHeader>
-                  <CardTitle className="text-lg">「トリセツ」はどのように作られますか？</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    会話データから、AIがパートナーの性格、好きなもの、嫌いなもの、価値観などを自動で分析して作成します。会話を重ねるほど、より詳しく正確なトリセツに進化していきます。
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 bg-muted/50">
-                <CardHeader>
-                  <CardTitle className="text-lg">プライバシーは守られますか？</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    会話データはHTTPS通信で安全に送信され、クラウドデータベースに保存されます。AI分析は自動で行われ、人の目に触れることはありません。
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 bg-muted/50">
-                <CardHeader>
-                  <CardTitle className="text-lg">片方の言語だけでも使えますか？</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    はい。パートナーとのメイン言語が異なる場合のみ、自動でサブ言語にリアルタイムで翻訳されます。
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 bg-muted/50">
-                <CardHeader>
-                  <CardTitle className="text-lg">無料プランでどこまで使えますか？</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    無料プランでも、月2時間までの会話記録、AI要約、基本的なトリセツ作成機能をご利用いただけます。まずは無料でお試しいただき、必要に応じてプランをアップグレードしてください。
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 bg-muted/50">
-                <CardHeader>
-                  <CardTitle className="text-lg">喧嘩していても使えますか？</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    はい。むしろ喧嘩の時こそ、Aibondが役立ちます。感情的になりがちな話し合いも、AIが客観的に記録・要約することで、冷静な解決をサポートします。AIパートナーへの相談もおすすめです。
-                  </p>
-                </CardContent>
-              </Card>
+              {faqs.map((faq, index) => (
+                <Card key={index} className="border-0 bg-muted/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg">{t(faq.questionKey as any)}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {t(faq.answerKey as any)}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         </section>
@@ -557,11 +490,11 @@ export default function LandingPage() {
 
           <div className="container mx-auto px-4 text-center relative">
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl mb-6">
-              今すぐ始めましょう
+              {t("ctaTitle")}
             </h2>
             <p className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto">
-              無料プランで、まずはお試しください。<br />
-              2人の絆をもっと深く、もっと円滑に。
+              {t("ctaDescription")}<br />
+              {t("ctaDescription2")}
             </p>
             <Link href="/signup">
               <Button
@@ -569,7 +502,7 @@ export default function LandingPage() {
                 variant="secondary"
                 className="text-lg px-10 py-7 shadow-2xl hover:scale-110 transition-all duration-300 font-semibold"
               >
-                無料で始める
+                {t("heroCta")}
               </Button>
             </Link>
           </div>
@@ -593,19 +526,19 @@ export default function LandingPage() {
                 href="/tokushoho"
                 className="text-sm text-muted-foreground hover:text-primary transition-colors"
               >
-                特定商取引法
+                {t("footerTokushoho")}
               </Link>
               <Link
                 href="/terms"
                 className="text-sm text-muted-foreground hover:text-primary transition-colors"
               >
-                利用規約
+                {t("footerTerms")}
               </Link>
               <Link
                 href="/privacy"
                 className="text-sm text-muted-foreground hover:text-primary transition-colors"
               >
-                プライバシーポリシー
+                {t("footerPrivacy")}
               </Link>
             </nav>
           </div>

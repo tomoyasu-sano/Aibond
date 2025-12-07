@@ -16,6 +16,7 @@ export interface ManualItem {
   is_fixed?: boolean;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 export interface CreateManualItemRequest {

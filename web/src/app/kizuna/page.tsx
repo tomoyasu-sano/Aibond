@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
 import {
   Dialog,
   DialogContent,
@@ -15,8 +15,20 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { Pencil, Trash2 } from "lucide-react";
 import { EmptyStateIcon, TopicStatusIcon, ReviewDueIcon } from "@/components/kizuna/KizunaIcons";
+import { KizunaOnboarding } from "@/components/onboarding/KizunaOnboarding";
 
 interface Topic {
   id: string;
@@ -49,6 +61,14 @@ export default function KizunaPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+
+  // 編集・削除用の状態
+  const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [deletingTopic, setDeletingTopic] = useState<Topic | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -108,6 +128,73 @@ export default function KizunaPage() {
     }
   };
 
+  const openEditDialog = (topic: Topic, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingTopic(topic);
+    setEditTitle(topic.title);
+    setIsEditDialogOpen(true);
+  };
+
+  const updateTopic = async () => {
+    if (!editingTopic || !editTitle.trim()) return;
+
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/kizuna/topics/${editingTopic.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle.trim() }),
+      });
+
+      if (res.ok) {
+        toast.success("テーマ名を変更しました");
+        setIsEditDialogOpen(false);
+        setEditingTopic(null);
+        fetchData();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "変更に失敗しました");
+      }
+    } catch (error) {
+      console.error("Error updating topic:", error);
+      toast.error("変更に失敗しました");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const openDeleteDialog = (topic: Topic, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeletingTopic(topic);
+  };
+
+  const deleteTopic = async () => {
+    if (!deletingTopic) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/kizuna/topics/${deletingTopic.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast.success("テーマを削除しました");
+        setDeletingTopic(null);
+        fetchData();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "削除に失敗しました");
+      }
+    } catch (error) {
+      console.error("Error deleting topic:", error);
+      toast.error("削除に失敗しました");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("ja-JP", {
@@ -153,22 +240,14 @@ export default function KizunaPage() {
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
           <div className="container mx-auto flex h-14 items-center justify-between px-4">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-              <span>{t("backToDashboard")}</span>
+              <span className="text-xl font-bold text-primary">Aibond</span>
             </Link>
-            <LanguageSwitcher />
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard" className="hidden md:block">
+                <Button variant="ghost" size="sm">{t("backToDashboard")}</Button>
+              </Link>
+              <MobileNavMenu />
+            </div>
           </div>
         </header>
         <main className="container mx-auto px-4 py-8 max-w-4xl">
@@ -186,52 +265,51 @@ export default function KizunaPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <KizunaOnboarding />
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-            <span>{t("backToDashboard")}</span>
+            <span className="text-xl font-bold text-primary">Aibond</span>
           </Link>
-          <LanguageSwitcher />
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard" className="hidden md:block">
+              <Button variant="ghost" size="sm">{t("backToDashboard")}</Button>
+            </Link>
+            <MobileNavMenu />
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold mb-1">{t("pageTitle")}</h1>
-            <p className="text-muted-foreground text-sm">{t("pageDescription")}</p>
-          </div>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-2"
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-1">{t("pageTitle")}</h1>
+              <p className="text-muted-foreground text-sm">{t("pageDescription")}</p>
+            </div>
+            <Button
+              onClick={() => setIsDialogOpen(true)}
+              data-onboarding="create-topic"
+              className="w-full sm:w-auto"
             >
-              <path d="M12 5v14" />
-              <path d="M5 12h14" />
-            </svg>
-            {t("addTheme")}
-          </Button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2"
+              >
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+              {t("addTheme")}
+            </Button>
+          </div>
         </div>
 
         {/* 見直し時期アラート */}
@@ -303,7 +381,7 @@ export default function KizunaPage() {
                 <div className="grid gap-3">
                   {activeTopics.map((topic) => (
                     <Link key={topic.id} href={`/kizuna/${topic.id}`}>
-                      <Card className="transition-all hover:shadow-md hover:border-primary/50 cursor-pointer">
+                      <Card className="group transition-all hover:shadow-md hover:border-primary/50 cursor-pointer">
                         <CardContent className="py-4 px-5">
                           <div className="flex items-start gap-3">
                             <TopicStatusIcon status={topic.status} size={24} />
@@ -320,6 +398,23 @@ export default function KizunaPage() {
                               <p className="text-sm text-muted-foreground">
                                 {topic.item_count}件の項目 • {formatDate(topic.updated_at)}更新
                               </p>
+                            </div>
+                            {/* 編集・削除ボタン（PCホバー時表示） */}
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => openEditDialog(topic, e)}
+                                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                title="テーマ名を変更"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                onClick={(e) => openDeleteDialog(topic, e)}
+                                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="テーマを削除"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -353,7 +448,7 @@ export default function KizunaPage() {
                 <div className="grid gap-3">
                   {resolvedTopics.map((topic) => (
                     <Link key={topic.id} href={`/kizuna/${topic.id}`}>
-                      <Card className="transition-all hover:shadow-md cursor-pointer opacity-70 hover:opacity-100">
+                      <Card className="group transition-all hover:shadow-md cursor-pointer opacity-70 hover:opacity-100">
                         <CardContent className="py-4 px-5">
                           <div className="flex items-start gap-3">
                             <TopicStatusIcon status={topic.status} size={24} />
@@ -362,6 +457,23 @@ export default function KizunaPage() {
                               <p className="text-sm text-muted-foreground">
                                 {topic.item_count}件の項目 • {formatDate(topic.updated_at)}更新
                               </p>
+                            </div>
+                            {/* 編集・削除ボタン（PCホバー時表示） */}
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => openEditDialog(topic, e)}
+                                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                title="テーマ名を変更"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                onClick={(e) => openDeleteDialog(topic, e)}
+                                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="テーマを削除"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -418,6 +530,61 @@ export default function KizunaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* テーマ名変更ダイアログ */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>テーマ名を変更</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="テーマ名"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              {tc("cancel")}
+            </Button>
+            <Button
+              onClick={updateTopic}
+              disabled={isUpdating || !editTitle.trim()}
+            >
+              {isUpdating ? "保存中..." : "保存"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* テーマ削除確認ダイアログ */}
+      <AlertDialog open={!!deletingTopic} onOpenChange={() => setDeletingTopic(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>テーマを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              テーマ「{deletingTopic?.title}」を削除します。
+              テーマ内の項目も全て削除されます。この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteTopic}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "削除中..." : "削除"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

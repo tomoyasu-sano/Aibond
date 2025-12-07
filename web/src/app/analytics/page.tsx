@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
 import {
   LineChart,
   Line,
@@ -31,7 +32,12 @@ interface SentimentData {
   constructivenessScore: number | null;
   understandingScore: number | null;
   overallScore: number | null;
-  overallComment: string | null;
+  // AI insights
+  goodPoints: string[];
+  concerns: string[];
+  suggestions: string[];
+  comparisonWithPrevious: string;
+  overallComment: string;
 }
 
 interface SentimentSummary {
@@ -161,10 +167,14 @@ export default function AnalyticsPage() {
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
           <div className="container mx-auto flex h-16 items-center justify-between px-4">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-primary">
-                {tc("appName")}
-              </span>
+              <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
             </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard" className="hidden md:block">
+                <Button variant="ghost" size="sm">{t("backToDashboard")}</Button>
+              </Link>
+              <MobileNavMenu />
+            </div>
           </div>
         </header>
         <main className="container mx-auto px-4 py-8">
@@ -183,15 +193,14 @@ export default function AnalyticsPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-primary">
-              {tc("appName")}
-            </span>
+            <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
           </Link>
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm">
-              ← {t("backToDashboard")}
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard" className="hidden md:block">
+              <Button variant="ghost" size="sm">{t("backToDashboard")}</Button>
+            </Link>
+            <MobileNavMenu />
+          </div>
         </div>
       </header>
 
@@ -395,29 +404,80 @@ export default function AnalyticsPage() {
             {selectedSentiment && (
               <Card className="mb-6">
                 <CardHeader>
-                  <CardTitle>{t("aiFeedback")}</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>{t("aiFeedback")}</CardTitle>
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(selectedSentiment.talkStartedAt || selectedSentiment.analyzedAt).toLocaleDateString("ja-JP", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}の会話
+                    </span>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Overall Comment */}
+                  {selectedSentiment.overallComment && (
+                    <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
+                      <p className="text-sm font-medium">
+                        {selectedSentiment.overallComment}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Good Points */}
-                  <div>
-                    <h4 className="font-medium text-green-600 dark:text-green-400 flex items-center gap-2 mb-2">
-                      ✅ {t("goodPoints")}
-                    </h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                      {/* TODO: AI insights from selectedSentiment */}
-                      <li>話し合いを続けようとする姿勢が見られます</li>
-                    </ul>
-                  </div>
+                  {selectedSentiment.goodPoints && selectedSentiment.goodPoints.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-green-600 dark:text-green-400 flex items-center gap-2 mb-2">
+                        ✅ {t("goodPoints")}
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                        {selectedSentiment.goodPoints.map((point, index) => (
+                          <li key={index}>{point}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Concerns */}
+                  {selectedSentiment.concerns && selectedSentiment.concerns.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-amber-600 dark:text-amber-400 flex items-center gap-2 mb-2">
+                        ⚠️ 気になる点
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                        {selectedSentiment.concerns.map((concern, index) => (
+                          <li key={index}>{concern}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   {/* Suggestions */}
-                  <div>
-                    <h4 className="font-medium text-blue-600 dark:text-blue-400 flex items-center gap-2 mb-2">
-                      💡 {t("suggestions")}
-                    </h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                      <li>引き続きお互いの気持ちを共有してみてください</li>
-                    </ul>
-                  </div>
+                  {selectedSentiment.suggestions && selectedSentiment.suggestions.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-blue-600 dark:text-blue-400 flex items-center gap-2 mb-2">
+                        💡 {t("suggestions")}
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                        {selectedSentiment.suggestions.map((suggestion, index) => (
+                          <li key={index}>{suggestion}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Comparison with Previous */}
+                  {selectedSentiment.comparisonWithPrevious && (
+                    <div>
+                      <h4 className="font-medium text-purple-600 dark:text-purple-400 flex items-center gap-2 mb-2">
+                        📊 前回との比較
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedSentiment.comparisonWithPrevious}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Low Score Message */}
                   {selectedSentiment.overallScore &&
@@ -435,7 +495,12 @@ export default function AnalyticsPage() {
             {/* Analysis History */}
             <Card>
               <CardHeader>
-                <CardTitle>{t("analysisHistory")}</CardTitle>
+                <div>
+                  <CardTitle>{t("analysisHistory")}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    クリックすると上のAIフィードバックが切り替わります
+                  </p>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">

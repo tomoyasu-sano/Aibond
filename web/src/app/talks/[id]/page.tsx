@@ -6,7 +6,22 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { DiarizationConfirmDialog } from "@/components/talk/DiarizationConfirmDialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Talk {
   id: string;
@@ -18,7 +33,8 @@ interface Talk {
   speaker1_name: string | null;
   speaker2_name: string | null;
   summary: string | null;
-  diarization_status?: string;
+  diarization_status: string | null;
+  summary_status: string | null;
 }
 
 interface Message {
@@ -49,6 +65,11 @@ export default function TalkPage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [previousDiarizationStatus, setPreviousDiarizationStatus] = useState<boolean>(false);
   const [isSwappingSpeakers, setIsSwappingSpeakers] = useState(false);
+  const [showDiarizationDialog, setShowDiarizationDialog] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [showEndingDialog, setShowEndingDialog] = useState(false);
+  const [endingStep, setEndingStep] = useState<"uploading" | "processing" | "done">("uploading");
+  const [isSkipping, setIsSkipping] = useState(false);
 
   // Refs for streaming
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -75,31 +96,62 @@ export default function TalkPage() {
     };
   }, [talkId]);
 
+  // 確認待ちステータスの場合、ダイアログを表示
+  useEffect(() => {
+    if (talk?.summary_status === "waiting_confirmation" && !showDiarizationDialog && !isConfirming && !isSkipping) {
+      console.log("[Talk] Detected waiting_confirmation, showing dialog");
+      toast.success("話者識別が完了しました。確認してください。");
+      setShowDiarizationDialog(true);
+    }
+  }, [talk?.summary_status, showDiarizationDialog, isConfirming, isSkipping]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, interimText]);
 
-  // Poll for message updates after talk completion (for diarization)
+  // Poll for message updates after talk completion (for diarization and summary)
   useEffect(() => {
     if (talk?.status === "completed") {
       // Check if any messages have null speaker tags (diarization in progress)
       const hasPendingDiarization = messages.some(m => m.speaker_tag === null);
 
-      // Check if diarization just completed
+      // Check if diarization just completed (speaker tags filled but not yet confirmed)
       if (previousDiarizationStatus && !hasPendingDiarization && messages.length > 0) {
-        console.log("[Talk] Diarization completed!");
-        toast.success("話者識別が完了しました");
+        console.log("[Talk] Speaker tags filled!");
       }
 
       setPreviousDiarizationStatus(hasPendingDiarization);
 
-      if (hasPendingDiarization) {
-        console.log("[Talk] Diarization in progress, polling for updates...");
-        const interval = setInterval(fetchTalk, 5000); // Poll every 5 seconds
+      // ポーリング継続条件を拡張:
+      // - 話者タグが null のメッセージがある（話者識別処理中）
+      // - diarization_status が pending/processing（話者識別待ち/処理中）
+      // - summary_status が pending/generating（サマリー生成待ち/処理中）
+      // - summary_status が waiting_confirmation でなければ継続（確認待ちになるまでポーリング）
+      const diarizationInProgress = ['pending', 'processing'].includes(talk.diarization_status || '');
+      const summaryInProgress = ['pending', 'generating'].includes(talk.summary_status || '');
+      const notYetWaitingConfirmation = talk.summary_status !== 'waiting_confirmation' &&
+                                         talk.summary_status !== 'generated' &&
+                                         talk.summary_status !== 'skipped' &&
+                                         talk.summary_status !== 'failed';
+      const shouldPoll = hasPendingDiarization || diarizationInProgress || summaryInProgress || notYetWaitingConfirmation;
+
+      if (shouldPoll) {
+        console.log("[Talk] Processing in progress, polling for updates...", {
+          hasPendingDiarization,
+          diarization_status: talk.diarization_status,
+          summary_status: talk.summary_status,
+          shouldPoll,
+        });
+        const interval = setInterval(fetchTalk, 3000); // Poll every 3 seconds for faster feedback
         return () => clearInterval(interval);
+      } else {
+        console.log("[Talk] Polling stopped", {
+          diarization_status: talk.diarization_status,
+          summary_status: talk.summary_status,
+        });
       }
     }
-  }, [talk?.status, messages]);
+  }, [talk?.status, talk?.diarization_status, talk?.summary_status, messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -244,13 +296,18 @@ export default function TalkPage() {
         });
 
         eventSource.addEventListener("error", (e: any) => {
-          console.error("[Recording] SSE error", e);
+          // SSE接続が正常に終了した場合も error イベントが発火するため、
+          // 実際のエラーデータがある場合のみログとトーストを表示
           if (e.data) {
             try {
               const errorData = JSON.parse(e.data);
+              console.error("[Recording] SSE error", errorData);
               toast.error(`エラー: ${errorData.message}`);
-            } catch {}
+            } catch {
+              console.warn("[Recording] SSE connection closed");
+            }
           }
+          // e.data がない場合は接続終了の正常なイベントなのでログしない
         });
 
         eventSourceRef.current = eventSource;
@@ -359,6 +416,17 @@ export default function TalkPage() {
         }
       }, 500);
 
+      // ステータスをactiveに更新（ready→active）
+      try {
+        await fetch(`/api/talks/${talkId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "start" }),
+        });
+      } catch (e) {
+        console.log("[Recording] Status update to active skipped (already active)");
+      }
+
       setIsRecording(true);
       setIsConnecting(false);
       startTimer();
@@ -447,10 +515,10 @@ export default function TalkPage() {
     }
   };
 
-  const uploadAudioFile = async () => {
+  const uploadAudioFile = async (): Promise<boolean> => {
     if (audioChunksRef.current.length === 0) {
       console.log("[Audio Upload] No audio chunks to upload");
-      return;
+      return false;
     }
 
     try {
@@ -470,11 +538,14 @@ export default function TalkPage() {
 
       if (res.ok) {
         console.log("[Audio Upload] Success");
+        return true;
       } else {
         console.error("[Audio Upload] Failed:", await res.text());
+        return false;
       }
     } catch (error) {
       console.error("[Audio Upload] Error:", error);
+      return false;
     } finally {
       audioChunksRef.current = [];
     }
@@ -486,6 +557,21 @@ export default function TalkPage() {
 
     console.log("[Recording] Stopping...");
     stopTimer();
+
+    // STTストリームを先に終了（タイムアウト回避）
+    if (sessionIdRef.current) {
+      console.log("[Recording] Ending STT stream...");
+      try {
+        await fetch("/api/stt/end", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sessionIdRef.current }),
+        });
+        console.log("[Recording] STT stream ended");
+      } catch (error) {
+        console.error("[Recording] Failed to end STT stream:", error);
+      }
+    }
 
     // MediaRecorderを停止して最後のチャンクを取得
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -499,10 +585,26 @@ export default function TalkPage() {
       });
     }
 
-    // 音声ファイルをアップロード（バックグラウンドで実行）
-    uploadAudioFile();
+    setIsRecording(false);
+    setInterimText("");
+
+    // 終了処理ダイアログを表示
+    setEndingStep("uploading");
+    setShowEndingDialog(true);
+
+    // 音声ファイルをアップロード（完了を待つ）
+    const uploadSuccess = await uploadAudioFile();
 
     cleanup();
+
+    if (!uploadSuccess) {
+      setShowEndingDialog(false);
+      toast.error("音声ファイルのアップロードに失敗しました");
+      isStoppingRef.current = false;
+      return;
+    }
+
+    setEndingStep("processing");
 
     try {
       const res = await fetch(`/api/talks/${talkId}`, {
@@ -513,23 +615,26 @@ export default function TalkPage() {
 
       if (res.ok) {
         const data = await res.json();
+        // talk state を更新してポーリングを開始させる
         setTalk(data.talk);
-        setIsRecording(false);
-        setInterimText("");
-        toast.success(t("recordingEndedMessage"));
-        // サマリー画面へ遷移
-        router.push(`/talks/${talkId}/summary`);
+        setEndingStep("done");
+        console.log("[Recording] Talk ended, status:", data.talk.status, "summary_status:", data.talk.summary_status);
       } else if (res.status === 400) {
-        setIsRecording(false);
-        setInterimText("");
+        setShowEndingDialog(false);
         await fetchTalk();
       }
     } catch (error) {
       console.error("Error stopping:", error);
+      setShowEndingDialog(false);
       toast.error(t("endingFailed"));
     } finally {
       isStoppingRef.current = false;
     }
+  };
+
+  const handleGoToList = () => {
+    setShowEndingDialog(false);
+    router.push("/talks");
   };
 
   const formatTime = (seconds: number) => {
@@ -575,6 +680,106 @@ export default function TalkPage() {
     }
   };
 
+  // 個別メッセージの話者設定（楽観的UI更新）
+  const setMessageSpeaker = async (messageId: string, currentSpeakerTag: number | null, newSpeakerTag: number | null) => {
+    if (currentSpeakerTag === newSpeakerTag) return; // 変更なし
+
+    // 楽観的にUIを更新
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, speaker_tag: newSpeakerTag } : m
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/talks/${talkId}/messages/${messageId}/swap-speaker`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ speaker_tag: newSpeakerTag }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // サーバーの値で再同期
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, speaker_tag: data.message.speaker_tag } : m
+          )
+        );
+      } else {
+        // 失敗時は元に戻す
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, speaker_tag: currentSpeakerTag } : m
+          )
+        );
+        toast.error("話者の変更に失敗しました");
+      }
+    } catch (error) {
+      // エラー時は元に戻す
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, speaker_tag: currentSpeakerTag } : m
+        )
+      );
+      console.error("[Set Message Speaker] Error:", error);
+      toast.error("話者の変更に失敗しました");
+    }
+  };
+
+  // 話者識別を確認してサマリー生成を開始
+  const confirmDiarization = async () => {
+    setShowDiarizationDialog(false);
+    setIsConfirming(true);
+
+    try {
+      const res = await fetch(`/api/talks/${talkId}/confirm`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        // サマリーページへ遷移（ダイアログは自動的に閉じる）
+        router.push(`/talks/${talkId}/summary`);
+      } else {
+        const error = await res.json();
+        console.error("[Confirm] Error:", error);
+        toast.error("サマリー生成の開始に失敗しました");
+        setIsConfirming(false);
+      }
+    } catch (error) {
+      console.error("[Confirm] Error:", error);
+      toast.error("サマリー生成の開始に失敗しました");
+      setIsConfirming(false);
+    }
+  };
+
+  // 話者識別をスキップしてサマリー生成を行わない
+  const skipDiarization = async () => {
+    setIsSkipping(true);
+    setShowDiarizationDialog(false);
+
+    try {
+      const res = await fetch(`/api/talks/${talkId}/skip`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        // talkの状態を更新
+        await fetchTalk();
+        toast.info("サマリー生成をスキップしました");
+      } else {
+        const error = await res.json();
+        console.error("[Skip] Error:", error);
+        toast.error("スキップに失敗しました");
+      }
+    } catch (error) {
+      console.error("[Skip] Error:", error);
+      toast.error("スキップに失敗しました");
+    } finally {
+      setIsSkipping(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -596,6 +801,94 @@ export default function TalkPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header t={t} tt={tt} tc={tc} />
+
+      {/* 話者識別確認ダイアログ */}
+      <DiarizationConfirmDialog
+        open={showDiarizationDialog}
+        onConfirm={confirmDiarization}
+        onSwapSpeakers={swapSpeakers}
+        onChangeSpeaker={(messageId, newSpeakerTag) => {
+          const message = messages.find(m => m.id === messageId);
+          if (message) {
+            setMessageSpeaker(messageId, message.speaker_tag, newSpeakerTag);
+          }
+        }}
+        onClose={skipDiarization}
+        messages={messages}
+        speaker1Name={talk.speaker1_name || "話者1"}
+        speaker2Name={talk.speaker2_name || "話者2"}
+        isSwapping={isSwappingSpeakers}
+      />
+
+      {/* サマリー生成中ダイアログ */}
+      <Dialog open={isConfirming} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" showCloseButton={false} onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              サマリーを作成中...
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 pt-2 text-sm text-muted-foreground">
+                <p>会話内容を分析してサマリーを生成しています。</p>
+                <p>しばらくお待ちください...</p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {/* 録音終了処理ダイアログ */}
+      <Dialog open={showEndingDialog} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" showCloseButton={false} onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {endingStep === "done" ? (
+                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              )}
+              {endingStep === "uploading" && "音声ファイルをアップロード中..."}
+              {endingStep === "processing" && "処理を開始しています..."}
+              {endingStep === "done" && "処理を開始しました"}
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 pt-2 text-sm text-muted-foreground">
+                {endingStep === "uploading" && (
+                  <p>録音した音声をサーバーにアップロードしています。しばらくお待ちください。</p>
+                )}
+                {endingStep === "processing" && (
+                  <p>話者識別処理を開始しています。この処理はバックグラウンドで実行されます。</p>
+                )}
+                {endingStep === "done" && (
+                  <>
+                    <p className="text-foreground font-medium">
+                      話者識別処理がバックグラウンドで実行中です。
+                    </p>
+                    <ul className="bg-muted p-3 rounded-md text-sm space-y-2 list-none">
+                      <li>✓ このページを離れても処理は継続されます</li>
+                      <li>✓ 処理完了後、一覧画面で確認できます</li>
+                      <li>✓ 通常1〜2分で完了します</li>
+                    </ul>
+                  </>
+                )}
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          {endingStep === "done" && (
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => { setShowEndingDialog(false); fetchTalk(); }}>
+                この画面で待つ
+              </Button>
+              <Button onClick={handleGoToList}>
+                一覧に戻る
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <main className="flex-1 container mx-auto px-4 py-4 flex flex-col">
         {/* Recording Controls */}
@@ -653,7 +946,9 @@ export default function TalkPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">{t("conversationContent")}</CardTitle>
               <div className="flex items-center gap-2">
-                {talk.status === "completed" && messages.some(m => m.speaker_tag === null) && (
+                {talk.status === "completed" &&
+                 talk.summary_status !== "skipped" &&
+                 messages.some(m => m.speaker_tag === null) && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
                     話者識別処理中...
@@ -661,7 +956,8 @@ export default function TalkPage() {
                 )}
                 {talk.status === "completed" &&
                  messages.length > 0 &&
-                 !messages.some(m => m.speaker_tag === null) && (
+                 !messages.some(m => m.speaker_tag === null) &&
+                 (talk.summary_status === null || talk.summary_status === "waiting_confirmation") && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -727,16 +1023,51 @@ export default function TalkPage() {
                     : "bg-primary text-primary-foreground";
                 };
 
+                // 話者識別完了後、サマリー生成前のみ個別変更を許可
+                const canChangeSpeaker = talk.status === "completed" &&
+                  (talk.summary_status === null || talk.summary_status === "waiting_confirmation");
+
                 return (
                   <div
                     key={message.id}
-                    className={`flex ${getSpeakerAlignment()}`}
+                    className={`flex ${getSpeakerAlignment()} group`}
                   >
                     <div className={`max-w-[80%] rounded-lg px-4 py-2 ${getSpeakerBg()}`}>
-                      <div className="text-xs opacity-70 mb-1">
+                      <div className="text-xs opacity-70 mb-1 flex items-center gap-2">
                         <span className="font-semibold">{getSpeakerName()}</span>
-                        {" • "}
-                        {formatTimestamp(message.timestamp)}
+                        <span>•</span>
+                        <span>{formatTimestamp(message.timestamp)}</span>
+                        {/* 話者変更セレクター */}
+                        {canChangeSpeaker && (
+                          <Select
+                            value={message.speaker_tag === null ? "unknown" : String(message.speaker_tag)}
+                            onValueChange={(value) => {
+                              const newTag = value === "unknown" ? null : parseInt(value, 10);
+                              setMessageSpeaker(message.id, message.speaker_tag, newTag);
+                            }}
+                          >
+                            <SelectTrigger className="h-5 w-auto px-1.5 text-xs opacity-0 group-hover:opacity-100 transition-opacity border-none bg-transparent hover:bg-black/10">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                              </svg>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">{talk.speaker1_name || "話者1"}</SelectItem>
+                              <SelectItem value="2">{talk.speaker2_name || "話者2"}</SelectItem>
+                              <SelectItem value="unknown">不明</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                       <p>{message.original_text}</p>
                       {message.translated_text && (

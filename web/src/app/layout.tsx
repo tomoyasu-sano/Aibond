@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { Toaster } from "@/components/ui/sonner";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { DiarizationNotifier } from "@/components/DiarizationNotifier";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,6 +38,7 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           {children}
           <FeedbackWidget />
+          <DiarizationNotifier />
         </NextIntlClientProvider>
         <Toaster position="top-right" richColors />
       </body>

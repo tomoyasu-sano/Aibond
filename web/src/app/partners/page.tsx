@@ -21,8 +21,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { LANGUAGES, type LanguageCode } from "@/types/database";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
+import { Download } from "lucide-react";
 
 interface PartnerData {
   partnership: {
@@ -54,6 +63,16 @@ export default function PartnersPage() {
   const [joining, setJoining] = useState(false);
   const [creating, setCreating] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteCompleted, setDeleteCompleted] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{
+    talks: number;
+    kizuna_topics: number;
+    manual_items: number;
+    ai_consultations: number;
+  } | null>(null);
+  const [isPaidUser, setIsPaidUser] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -61,9 +80,10 @@ export default function PartnersPage() {
 
   const fetchData = async () => {
     try {
-      const [partnerRes, inviteRes] = await Promise.all([
+      const [partnerRes, inviteRes, profileRes] = await Promise.all([
         fetch("/api/partners"),
         fetch("/api/partners/invite"),
+        fetch("/api/profile"),
       ]);
 
       if (partnerRes.status === 401) {
@@ -73,9 +93,11 @@ export default function PartnersPage() {
 
       const partnerData = await partnerRes.json();
       const inviteData = await inviteRes.json();
+      const profileData = await profileRes.json();
 
       setData(partnerData);
       setInvitation(inviteData.invitation);
+      setIsPaidUser(profileData.subscription?.plan !== "free");
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error(t("fetchFailed"));
@@ -163,6 +185,7 @@ export default function PartnersPage() {
   };
 
   const deleteHistory = async () => {
+    setDeleting(true);
     try {
       const res = await fetch("/api/partners/history", { method: "DELETE" });
       const data = await res.json();
@@ -171,9 +194,60 @@ export default function PartnersPage() {
         throw new Error(data.error);
       }
 
-      toast.success(t("deleteHistorySuccess", { talks: data.deleted.talks, promises: data.deleted.promises }));
+      setDeleteResult(data.deleted);
+      setDeleting(false);
+
+      // 履歴削除フラグをlocalStorageに設定（ManualContentで検知してカバー画像をリセット）
+      localStorage.setItem("aibond_history_deleted", Date.now().toString());
+      // カスタムイベントを発火（同一タブ内の他コンポーネント向け）
+      window.dispatchEvent(new CustomEvent("aibond:history-deleted"));
+
+      // 全て0件の場合はトーストで通知、それ以外はダイアログ表示
+      const totalDeleted = Object.values(data.deleted as Record<string, number>).reduce((a, b) => a + b, 0);
+      if (totalDeleted === 0) {
+        toast.info(t("noDataToDelete"));
+      } else {
+        setDeleteCompleted(true);
+      }
     } catch (error) {
+      setDeleting(false);
       toast.error(error instanceof Error ? error.message : t("deleteFailed"));
+    }
+  };
+
+  const handleDeleteCompleteClose = () => {
+    setDeleteCompleted(false);
+    setDeleteResult(null);
+    // データを再取得して画面を更新
+    fetchData();
+  };
+
+  const exportData = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/export");
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || t("exportFailed"));
+      }
+
+      // JSONファイルをダウンロード
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `aibond-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(t("exportSuccess"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("exportFailed"));
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -279,8 +353,8 @@ export default function PartnersPage() {
                   {t("historyDescription")}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
                   {t("historyHelpText")}
                 </p>
                 <AlertDialog>
@@ -304,6 +378,47 @@ export default function PartnersPage() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+              </CardContent>
+            </Card>
+
+            {/* データエクスポート */}
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  {t("dataExport")}
+                </CardTitle>
+                <CardDescription>
+                  {t("dataExportDescription")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isPaidUser ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      {t("dataExportHelpText")}
+                    </p>
+                    <Button
+                      onClick={exportData}
+                      disabled={exporting}
+                      className="w-full md:w-auto"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {exporting ? t("exportingButton") : t("exportButton")}
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      {t("dataExportPaidOnly")}
+                    </p>
+                    <Link href="/plans" className="block pt-4">
+                      <Button variant="outline" className="w-full md:w-auto">
+                        {t("upgradePlan")}
+                      </Button>
+                    </Link>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -419,9 +534,98 @@ export default function PartnersPage() {
                 </AlertDialog>
               </CardContent>
             </Card>
+
+            {/* データエクスポート */}
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  {t("dataExport")}
+                </CardTitle>
+                <CardDescription>
+                  {t("dataExportDescription")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isPaidUser ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      {t("dataExportHelpText")}
+                    </p>
+                    <Button
+                      onClick={exportData}
+                      disabled={exporting}
+                      className="w-full md:w-auto"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {exporting ? t("exportingButton") : t("exportButton")}
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      {t("dataExportPaidOnly")}
+                    </p>
+                    <Link href="/plans" className="block pt-4">
+                      <Button variant="outline" className="w-full md:w-auto">
+                        {t("upgradePlan")}
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
       </main>
+
+      {/* 削除処理中ダイアログ */}
+      <Dialog open={deleting} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
+              {t("deletingTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("deletingDescription")}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {/* 削除完了ダイアログ */}
+      <Dialog open={deleteCompleted} onOpenChange={handleDeleteCompleteClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              {t("deleteCompletedTitle")}
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 pt-2">
+                <p>{t("deleteCompletedDescription")}</p>
+                {deleteResult && (
+                  <ul className="text-sm space-y-1 bg-muted p-3 rounded-md">
+                    <li>{t("deletedTalks")}: {t("itemCount", { count: deleteResult.talks })}</li>
+                    <li>{t("deletedKizunaTopics")}: {t("itemCount", { count: deleteResult.kizuna_topics })}</li>
+                    <li>{t("deletedManualItems")}: {t("itemCount", { count: deleteResult.manual_items })}</li>
+                    <li>{t("deletedAiConsultations")}: {t("itemCount", { count: deleteResult.ai_consultations })}</li>
+                  </ul>
+                )}
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4">
+            <Button onClick={handleDeleteCompleteClose}>
+              {t("closeButton")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -433,17 +637,14 @@ function Header({ t, tc, onSignOut }: { t: any; tc: any; onSignOut: () => void }
         <Link href="/dashboard" className="flex items-center gap-2">
           <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
         </Link>
-        <nav className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm">
-              {tc("dashboard")}
-            </Button>
+        <nav className="flex items-center gap-2 md:gap-4">
+          <Link href="/dashboard" className="hidden md:block">
+            <Button variant="ghost" size="sm">{tc("dashboard")}</Button>
           </Link>
-          <Link href="/settings">
-            <Button variant="ghost" size="sm">
-              {tc("settings")}
-            </Button>
+          <Link href="/settings" className="hidden md:block">
+            <Button variant="ghost" size="sm">{tc("settings")}</Button>
           </Link>
+          <MobileNavMenu />
         </nav>
       </div>
     </header>

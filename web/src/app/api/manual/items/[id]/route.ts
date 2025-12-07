@@ -71,7 +71,8 @@ export async function PUT(
 
 /**
  * DELETE /api/manual/items/:id
- * 取説項目を削除
+ * 取説項目を論理削除（deleted_at を設定）
+ * user_id または target_user_id が自分の場合に削除可能
  */
 export async function DELETE(
   request: NextRequest,
@@ -91,19 +92,27 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 項目を削除
-    const { error } = await supabase
+    // 項目を論理削除（deleted_at を設定）
+    // user_id または target_user_id が自分の場合に削除可能
+    const { data: deletedItem, error } = await supabase
       .from('manual_items')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('user_id', user.id);
+      .or(`user_id.eq.${user.id},target_user_id.eq.${user.id}`)
+      .is('deleted_at', null)
+      .select()
+      .single();
 
     if (error) {
       console.error('Error deleting manual item:', error);
-      return NextResponse.json({ error: 'Failed to delete manual item' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to delete manual item', details: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ message: 'Manual item deleted successfully' });
+    if (!deletedItem) {
+      return NextResponse.json({ error: 'Manual item not found or already deleted' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Manual item deleted successfully' });
   } catch (error) {
     console.error('Unexpected error in DELETE /api/manual/items/:id:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

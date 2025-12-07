@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
 import { toast } from "sonner";
 
 interface ChatMessage {
@@ -68,6 +69,7 @@ function AIChatContent() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Consultation | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [requiresPaidPlan, setRequiresPaidPlan] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -103,6 +105,14 @@ function AIChatContent() {
       if (res.status === 401) {
         router.push("/login");
         return;
+      }
+      if (res.status === 403) {
+        const data = await res.json();
+        if (data.code === "PLAN_REQUIRED") {
+          setRequiresPaidPlan(true);
+          setLoading(false);
+          return;
+        }
       }
       const data = await res.json();
       setConsultations(data.consultations || []);
@@ -504,6 +514,79 @@ function AIChatContent() {
             <div className="flex-1 flex items-center justify-center">
               <div className="animate-pulse text-muted-foreground">{tc("loading")}</div>
             </div>
+          ) : requiresPaidPlan ? (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="max-w-md text-center">
+                <div className="relative mb-6">
+                  {/* グラデーション背景 */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl" />
+                  <div className="relative w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center border border-primary/20">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="40"
+                      height="40"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-primary"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      <path d="M12 7v2" />
+                      <path d="M12 13h.01" />
+                    </svg>
+                  </div>
+                </div>
+
+                <h2 className="text-2xl font-bold mb-2">{t("paidPlanTitle")}</h2>
+                <p className="text-muted-foreground mb-6">
+                  {t("paidPlanDescription")}
+                </p>
+
+                <div className="space-y-3 text-left mb-6 p-4 rounded-xl bg-muted/50 border">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <p className="text-sm">{t("paidPlanFeature1")}</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <p className="text-sm">{t("paidPlanFeature2")}</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <p className="text-sm">{t("paidPlanFeature3")}</p>
+                  </div>
+                </div>
+
+                <Button asChild size="lg" className="w-full gap-2">
+                  <Link href="/settings?tab=plan">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2v20" />
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
+                    {t("upgradePlan")}
+                  </Link>
+                </Button>
+
+                <p className="text-xs text-muted-foreground mt-4">
+                  {t("paidPlanNote")}
+                </p>
+              </div>
+            </div>
           ) : (
             <>
               {/* メッセージ一覧 */}
@@ -689,9 +772,11 @@ function Header({ t, tc, onMenuClick }: { t: any; tc: any; onMenuClick: () => vo
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center justify-between px-4">
         <div className="flex items-center gap-2">
+          {/* チャット履歴ボタン（リストアイコン） */}
           <button
             onClick={onMenuClick}
             className="md:hidden p-2 hover:bg-muted rounded-lg"
+            title="チャット履歴"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -704,32 +789,19 @@ function Header({ t, tc, onMenuClick }: { t: any; tc: any; onMenuClick: () => vo
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <line x1="4" x2="20" y1="12" y2="12" />
-              <line x1="4" x2="20" y1="6" y2="6" />
-              <line x1="4" x2="20" y1="18" y2="18" />
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              <path d="M8 9h8" />
+              <path d="M8 13h6" />
             </svg>
           </button>
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-            <span className="hidden sm:inline">{t("backToDashboard")}</span>
+          <Link href="/dashboard" className="hidden md:flex items-center gap-2">
+            <span>{t("backToDashboard")}</span>
           </Link>
         </div>
         <h1 className="text-base md:text-lg font-semibold">{t("pageTitle")}</h1>
-        <Link href="/dashboard" className="text-lg md:text-xl font-bold text-primary">
-          {tc("appName")}
-        </Link>
+        <div className="flex items-center gap-2">
+          <MobileNavMenu />
+        </div>
       </div>
     </header>
   );

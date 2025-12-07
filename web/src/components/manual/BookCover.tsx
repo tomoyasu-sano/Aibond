@@ -1,35 +1,41 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Card } from "@/components/ui/card";
-import { getCurrentLevel } from "@/lib/manual/config";
+import { getCurrentRank, calculateLevel } from "@/lib/manual/config";
 import { motion } from "framer-motion";
-import { useState, useRef } from "react";
-import { Upload } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Camera } from "lucide-react";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 interface BookCoverProps {
   title: string;
   itemCount: number;
-  isOwn: boolean; // true = 自分の取説, false = パートナーの取説
+  isOwn: boolean;
   onClick: () => void;
-  coverImageUrl?: string; // カバー画像URL
-  targetUserId: string; // アップロード対象のユーザーID
-  onImageUploaded?: (url: string) => void; // アップロード完了時のコールバック
+  coverImageUrl?: string;
+  targetUserId: string;
+  onImageUploaded?: (url: string) => void;
 }
 
-export function BookCover({ title, itemCount, isOwn, onClick, coverImageUrl, targetUserId, onImageUploaded }: BookCoverProps) {
+export function BookCover({
+  title,
+  itemCount,
+  isOwn,
+  onClick,
+  coverImageUrl,
+  targetUserId,
+  onImageUploaded,
+}: BookCoverProps) {
   const t = useTranslations("manual");
-  const currentLevel = getCurrentLevel(itemCount);
+  const currentRank = getCurrentRank(itemCount);
+  const level = calculateLevel(itemCount);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [currentCoverImage, setCurrentCoverImage] = useState(coverImageUrl);
 
-  // デフォルト画像（自分用とパートナー用で異なる画像）
-  const defaultImage = isOwn
-    ? "/images/manual-cover-default-own.svg"
-    : "/images/manual-cover-default-partner.svg";
-  const displayImage = currentCoverImage || defaultImage;
+  useEffect(() => {
+    setCurrentCoverImage(coverImageUrl);
+  }, [coverImageUrl]);
 
   const handleImageClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -43,42 +49,43 @@ export function BookCover({ title, itemCount, isOwn, onClick, coverImageUrl, tar
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('target_user_id', targetUserId);
+      formData.append("file", file);
+      formData.append("target_user_id", targetUserId);
 
-      const res = await fetch('/api/manual/cover-image', {
-        method: 'POST',
+      const res = await fetch("/api/manual/cover-image", {
+        method: "POST",
         body: formData,
       });
 
       if (res.ok) {
         const data = await res.json();
         setCurrentCoverImage(data.url);
-        onImageUploaded?.(data.url); // 親コンポーネントに通知
+        onImageUploaded?.(data.url);
       } else {
-        console.error('Failed to upload image');
+        console.error("Failed to upload image");
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error("Error uploading image:", error);
     } finally {
       setUploading(false);
     }
   };
 
-  // 本の厚みを固定（レベルに関わらず統一）
-  const thickness = 40; // 固定値
+  // Color themes
+  const gradientFrom = isOwn ? "from-rose-100" : "from-sky-100";
+  const gradientVia = isOwn ? "via-pink-50" : "via-blue-50";
+  const gradientTo = isOwn ? "to-rose-200" : "to-sky-200";
+  const textAccentLight = isOwn ? "text-pink-500" : "text-blue-500";
+  const textAccentMuted = isOwn ? "text-pink-400" : "text-blue-400";
+  const dividerColor = isOwn ? "bg-pink-200" : "bg-blue-200";
+  const cornerGradient = isOwn
+    ? "from-pink-400 to-rose-400"
+    : "from-blue-400 to-sky-400";
+  const placeholderBorder = isOwn ? "border-pink-200" : "border-blue-200";
+  const placeholderIcon = isOwn ? "text-pink-300" : "text-blue-300";
 
-  // 色設定（明るく綺麗に）
-  const bookColor = isOwn
-    ? "from-pink-50 via-rose-50 to-pink-100 border-pink-200" // 自分: 明るいピンク
-    : "from-blue-50 via-sky-50 to-blue-100 border-blue-200"; // パートナー: 明るい青
-
-  const spineColor = isOwn
-    ? "from-pink-100 via-rose-100 to-pink-200" // 背表紙: ピンク
-    : "from-blue-100 via-sky-100 to-blue-200"; // 背表紙: 青
-
-  const accentColor = isOwn ? "bg-pink-400" : "bg-blue-400";
-  const textColor = isOwn ? "text-pink-800" : "text-blue-800";
+  // Get romanized name for display
+  const displayName = title.replace(/さん$/, "");
 
   return (
     <>
@@ -90,126 +97,156 @@ export function BookCover({ title, itemCount, isOwn, onClick, coverImageUrl, tar
       <motion.button
         onClick={onClick}
         className="relative group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg"
-      whileHover={{
-        scale: 1.05,
-        rotateY: isOwn ? -5 : 5,
-      }}
-      whileTap={{
-        scale: 0.98,
-        rotateY: isOwn ? -15 : 15,
-      }}
-      transition={{ duration: 0.2 }}
-      style={{
-        perspective: "1000px",
-        transformStyle: "preserve-3d",
-      }}
-    >
-      <motion.div
-        className={`relative bg-gradient-to-br ${bookColor} border-2 cursor-pointer overflow-hidden rounded-lg`}
-        style={{
-          width: "280px",
-          height: "380px",
-          transformStyle: "preserve-3d",
+        whileHover={{
+          y: -12,
+          rotate: isOwn ? 1 : -1,
+        }}
+        whileTap={{
+          scale: 0.98,
+        }}
+        transition={{
+          type: "spring",
+          stiffness: 300,
+          damping: 20,
         }}
       >
-        {/* 本の背表紙（厚み）*/}
+        {/* Card Container */}
         <div
-          className={`absolute left-0 top-0 bottom-0 bg-gradient-to-r ${spineColor}`}
-          style={{ width: `${thickness}px` }}
-        />
-
-        {/* 栞（しおり）- 右上 */}
-        <div className="absolute -top-0 right-8 w-8 h-28 z-10">
-          <div
-            className={`w-full h-full ${isOwn ? "bg-gradient-to-b from-rose-200 via-rose-300 to-rose-400" : "bg-gradient-to-b from-sky-200 via-sky-300 to-sky-400"} shadow-sm opacity-90`}
-            style={{
-              clipPath: "polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%)"
-            }}
-          />
-          {/* しおりの影 */}
-          <div
-            className="absolute inset-0 bg-black/5 blur-[2px]"
-            style={{
-              clipPath: "polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%)",
-              transform: "translateY(2px)"
-            }}
-          />
-        </div>
-
-        {/* 本の表紙 */}
-        <div
-          className="h-full flex flex-col p-4 pl-14"
-          style={{ marginLeft: `${thickness - 20}px` }}
+          className={`
+            relative bg-white rounded-xl overflow-hidden
+            w-[260px] h-[400px]
+            sm:w-[280px] sm:h-[440px]
+            lg:w-[320px] lg:h-[480px]
+            shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)]
+            group-hover:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)]
+            transition-shadow duration-500
+          `}
         >
-          {/* 上部: タイトル */}
-          <div className="mb-3">
-            <h3 className={`text-xl font-bold ${textColor} text-center`}>
-              {title}
-            </h3>
-          </div>
-
-          {/* 中央: カバー画像 */}
-          <div className="flex-1 flex items-center justify-center mb-3">
-            <div
-              className="relative w-full h-full max-h-[200px] rounded-lg overflow-hidden shadow-md group/image cursor-pointer"
-              onClick={handleImageClick}
-            >
+          {/* Hero Image Area */}
+          <div className="relative h-[50%] sm:h-[52%] lg:h-[55%] m-2 sm:m-3 mb-0 rounded-t-lg overflow-hidden">
+            {/* Background/Image */}
+            {currentCoverImage ? (
               <img
-                src={displayImage}
+                src={currentCoverImage}
                 alt={`${title}の取説カバー`}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // 画像読み込み失敗時は明るい背景色で代替
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement!.style.backgroundColor = isOwn ? '#fdf2f8' : '#eff6ff';
-                }}
+                className="absolute inset-0 w-full h-full object-cover"
               />
-              {/* アップロードオーバーレイ */}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center">
-                <div className="text-white text-sm flex items-center gap-2">
-                  <Upload size={16} />
-                  画像を変更
+            ) : (
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} ${gradientVia} ${gradientTo} flex items-center justify-center`}
+              >
+                <div
+                  className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 ${placeholderBorder} flex items-center justify-center`}
+                >
+                  <svg
+                    className={`w-8 h-8 sm:w-10 sm:h-10 ${placeholderIcon}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
                 </div>
               </div>
-              {/* 非表示のファイル入力 */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
+            )}
+
+            {/* Upload Overlay */}
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 sm:pb-6 cursor-pointer"
+              onClick={handleImageClick}
+            >
+              <div className="text-white text-xs sm:text-sm flex items-center gap-2">
+                <Camera size={16} />
+                写真を設定
+              </div>
+            </div>
+
+            {/* Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+          </div>
+
+          {/* Content Area */}
+          <div className="h-[50%] sm:h-[48%] lg:h-[45%] px-4 sm:px-5 py-4 sm:py-5 pb-6 sm:pb-8 flex flex-col">
+            {/* Divider with TORISETU */}
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <div className={`flex-1 h-px ${dividerColor}`}></div>
+              <span
+                className={`text-[8px] sm:text-[10px] ${textAccentMuted} tracking-[0.2em] sm:tracking-[0.3em]`}
+              >
+                TORISETU
+              </span>
+              <div className={`flex-1 h-px ${dividerColor}`}></div>
+            </div>
+
+            {/* Name */}
+            <h2
+              className="text-xl sm:text-2xl font-semibold text-gray-800 text-center mb-0.5 sm:mb-1 tracking-wide truncate max-w-full px-2"
+              style={{ fontFamily: "serif" }}
+              title={displayName}
+            >
+              {displayName}
+            </h2>
+            <p className="text-[8px] sm:text-[10px] text-gray-400 text-center tracking-[0.1em] sm:tracking-[0.15em] mb-4 sm:mb-6 truncate max-w-full px-2">
+              {displayName}&apos;s Manual
+            </p>
+
+            {/* Stats Row */}
+            <div className="flex items-center justify-between px-1 sm:px-2">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] sm:text-xs text-gray-400">
+                  Lv.
+                </span>
+                <span
+                  className={`text-base sm:text-lg font-semibold ${textAccentLight}`}
+                  style={{ fontFamily: "serif" }}
+                >
+                  {level}
+                </span>
+              </div>
+              <div className="h-3 sm:h-4 w-px bg-gray-200"></div>
+              <div className="text-center flex-1 px-1 sm:px-2">
+                <span className="text-[8px] sm:text-[10px] text-gray-400 block">
+                  RANK
+                </span>
+                <span className="text-[10px] sm:text-xs font-medium text-gray-600 truncate block">
+                  {currentRank.title}
+                </span>
+              </div>
+              <div className="h-3 sm:h-4 w-px bg-gray-200"></div>
+              <div className="flex items-center gap-1">
+                <span
+                  className={`text-base sm:text-lg font-semibold ${textAccentLight}`}
+                  style={{ fontFamily: "serif" }}
+                >
+                  {itemCount}
+                </span>
+                <span className="text-[10px] sm:text-xs text-gray-400">
+                  items
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* 下部: 説明 */}
-          <div className="text-center">
-            <p className={`text-xs ${textColor} opacity-70`}>
-              {itemCount}枚 {currentLevel.emoji} Lv.{currentLevel.level}
-            </p>
+          {/* Corner Accent */}
+          <div className="absolute top-0 left-0 w-12 h-12 sm:w-16 sm:h-16 overflow-hidden">
+            <div
+              className={`absolute -top-6 -left-6 sm:-top-8 sm:-left-8 w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br ${cornerGradient} rotate-45`}
+            ></div>
           </div>
         </div>
-
-        {/* キラキラエフェクト（ホバー時） */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-        {/* 影（立体感） */}
-        <motion.div
-          className="absolute -bottom-2 -right-2 -z-10 bg-black/5 rounded-lg blur-md"
-          style={{
-            width: "280px",
-            height: "380px",
-          }}
-        />
-      </motion.div>
-
-      {/* レベルアップバッジ（必要に応じて） */}
-      {itemCount > 0 && itemCount % 5 === 0 && (
-        <div className={`absolute -top-2 -right-2 ${accentColor} text-white text-xs px-3 py-1 rounded-full shadow-lg animate-bounce`}>
-          ✨ Level {currentLevel.level}
-        </div>
-      )}
-    </motion.button>
+      </motion.button>
     </>
   );
 }

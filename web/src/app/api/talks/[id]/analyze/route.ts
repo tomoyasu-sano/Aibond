@@ -219,6 +219,7 @@ export async function POST(
       total_characters: result.sentiment.totalCharacters,
       constructiveness_score: result.evaluation.constructivenessScore,
       understanding_score: result.evaluation.understandingScore,
+      overall_score: result.overallScore,
       ai_insights: result.evaluation.insights,
     });
   }

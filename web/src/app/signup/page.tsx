@@ -130,12 +130,42 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* 利用規約への同意（共通） */}
+          <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="terms"
+                checked={agreedToTerms}
+                onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                disabled={loading || googleLoading}
+              />
+              <label
+                htmlFor="terms"
+                className="text-sm leading-tight cursor-pointer"
+              >
+                <Link href="/terms" className="text-primary hover:underline" target="_blank">
+                  {t("termsOfService")}
+                </Link>
+                {" "}{t("privacyPolicy") && (
+                  <>
+                    {" / "}
+                    <Link href="/privacy" className="text-primary hover:underline" target="_blank">
+                      {t("privacyPolicy")}
+                    </Link>
+                  </>
+                )}
+                {t("agreeText")}
+              </label>
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-3 mb-4 text-sm text-red-600 bg-red-50 rounded-md">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSignup} className="space-y-4">
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
-                {error}
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">{tc("email")}</Label>
               <Input
@@ -173,32 +203,6 @@ export default function SignupPage() {
                 disabled={loading}
                 minLength={6}
               />
-            </div>
-
-            <div className="flex items-start space-x-2">
-              <Checkbox
-                id="terms"
-                checked={agreedToTerms}
-                onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
-                disabled={loading || googleLoading}
-              />
-              <label
-                htmlFor="terms"
-                className="text-sm leading-tight cursor-pointer"
-              >
-                <Link href="/terms" className="text-primary hover:underline" target="_blank">
-                  {t("termsOfService")}
-                </Link>
-                {" "}{t("privacyPolicy") && (
-                  <>
-                    {" / "}
-                    <Link href="/privacy" className="text-primary hover:underline" target="_blank">
-                      {t("privacyPolicy")}
-                    </Link>
-                  </>
-                )}
-                {t("agreeText")}
-              </label>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading || googleLoading || !agreedToTerms}>

@@ -3,13 +3,6 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { ManualItemModal } from "@/components/manual/ManualItemModal";
 import { OnboardingModal } from "@/components/manual/OnboardingModal";
 import { VoiceInputModal } from "@/components/manual/VoiceInputModal";
@@ -26,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface BookContentProps {
   isOpen: boolean;
@@ -63,6 +57,7 @@ export function BookContent({
   const [deletingItem, setDeletingItem] = useState<ManualItem | null>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<ManualCategory | "all">("all");
 
   // 本を開いた時、アイテムが0ならオンボーディングを表示
   useEffect(() => {
@@ -70,15 +65,6 @@ export function BookContent({
       setShowOnboarding(true);
     }
   }, [isOpen, items.length]);
-
-  // カテゴリごとにアイテムをグループ化
-  const itemsByCategory = items.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
-    }
-    acc[item.category].push(item);
-    return acc;
-  }, {} as Record<ManualCategory, ManualItem[]>);
 
   const handleEdit = (item: ManualItem) => {
     setEditingItem(item);
@@ -91,8 +77,20 @@ export function BookContent({
   };
 
   const handleDelete = async () => {
-    if (deletingItem) {
+    if (!deletingItem) return;
+    try {
+      const res = await fetch(`/api/manual/items/${deletingItem.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Delete failed:", res.status, errorData);
+        throw new Error(errorData.details || errorData.error || `HTTP ${res.status}`);
+      }
       onItemDeleted(deletingItem.id, targetUserId);
+      toast.success("削除しました");
+    } catch (e) {
+      console.error("Delete error:", e);
+      toast.error(`削除に失敗しました: ${e instanceof Error ? e.message : "不明なエラー"}`);
+    } finally {
       setDeletingItem(null);
     }
   };
@@ -106,16 +104,29 @@ export function BookContent({
     newItems.forEach((item) => onItemAdded(item));
   };
 
-  const accentColor = isOwn
-    ? "border-pink-300 bg-pink-50/50"
-    : "border-blue-300 bg-blue-50/50";
-
   // スライド方向（自分=右から、パートナー=左から）
-  const slideDirection = isOwn ? "100%" : "-100%";
   const position = isOwn ? "right-0" : "left-0";
 
-  // デフォルトで全カテゴリーを開く
-  const allCategoryKeys = Object.keys(MANUAL_CATEGORIES);
+  // Color themes
+  const gradientFrom = isOwn ? "from-pink-50" : "from-blue-50";
+  const tabActiveClass = isOwn
+    ? "bg-pink-500 text-white"
+    : "bg-blue-500 text-white";
+  const cardHoverBorder = isOwn
+    ? "hover:border-pink-200"
+    : "hover:border-blue-200";
+  const labelColor = isOwn ? "text-pink-400" : "text-blue-400";
+  const addButtonHover = isOwn
+    ? "hover:border-pink-300 hover:text-pink-400 hover:bg-pink-50/30"
+    : "hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/30";
+
+  // Get displayed name
+  const displayName = title.replace(/の取説$/, "");
+
+  // Filter items by category
+  const filteredItems = activeCategory === "all"
+    ? items
+    : items.filter((item) => item.category === activeCategory);
 
   return (
     <>
@@ -135,7 +146,7 @@ export function BookContent({
               }}
             />
 
-            {/* 本の内容 */}
+            {/* 本の内容 - Card Grid with Tabs Design */}
             <motion.div
               initial={{
                 x: isOwn ? "50%" : "-50%",
@@ -165,154 +176,152 @@ export function BookContent({
                 transformStyle: "preserve-3d",
                 transformOrigin: isOwn ? "right center" : "left center",
               }}
-              className={`fixed ${position} top-0 bottom-0 w-full md:w-2/3 lg:w-1/2 bg-background shadow-2xl z-50 overflow-y-auto`}
+              className={`fixed ${position} top-0 bottom-0 w-full md:w-2/3 lg:w-1/2 max-w-lg bg-white shadow-2xl z-50 flex flex-col`}
             >
-              {/* ヘッダー */}
-              <div className={`sticky top-0 z-10 bg-background border-b-2 ${accentColor} p-4`}>
+              {/* Header */}
+              <div className={`relative px-6 py-5 bg-gradient-to-r ${gradientFrom} to-white`}>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold">{title}</h2>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-1 h-6 bg-gradient-to-b ${isOwn ? "from-pink-400 to-rose-400" : "from-blue-400 to-sky-400"} rounded-full`}></div>
+                      <p className={`text-[10px] ${labelColor} tracking-[0.2em]`}>TORISETU</p>
+                    </div>
+                    <h2 className="text-2xl font-semibold text-gray-800 pl-3" style={{ fontFamily: "serif" }}>
+                      {displayName}&apos;s Manual
+                    </h2>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
                     onClick={onClose}
-                    className="rounded-full"
+                    className="w-10 h-10 rounded-full hover:bg-white/80 flex items-center justify-center transition-colors"
                   >
-                    <X size={20} />
-                  </Button>
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
                 </div>
               </div>
 
-              {/* 本の内容 */}
-              <div className="p-6">
-                {items.length === 0 ? (
-                  // 空の状態
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <div className="text-6xl mb-4">📝</div>
-                    <p className="text-lg font-medium mb-2">{t("emptyState")}</p>
-                    <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
-                      {t("emptyDescription")}
-                    </p>
-                    <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
-                      <Plus size={18} />
-                      {t("addItem")}
-                    </Button>
-                  </div>
-                ) : (
-                  // カテゴリー別アコーディオン
-                  <div className="space-y-3">
-                    <Accordion type="multiple" defaultValue={allCategoryKeys} className="space-y-2">
-                      {Object.entries(MANUAL_CATEGORIES).map(([key, category]) => {
-                        const categoryItems = itemsByCategory[key as ManualCategory] || [];
-                        const CategoryIcon = category.icon;
+              {/* Category Tabs */}
+              <div className="px-4 py-3 border-b border-gray-100 overflow-x-auto">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setActiveCategory("all")}
+                    className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      activeCategory === "all"
+                        ? tabActiveClass
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {t("allCategories")}
+                  </button>
+                  {Object.entries(MANUAL_CATEGORIES).map(([key, category]) => (
+                    <button
+                      key={key}
+                      onClick={() => setActiveCategory(key as ManualCategory)}
+                      className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                        activeCategory === key
+                          ? tabActiveClass
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {t(`category${key.charAt(0).toUpperCase() + key.slice(1)}` as any)}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
+              {/* Content - Card Grid */}
+              <div className="flex-1 overflow-y-auto bg-gray-50/50">
+                <div className="p-4">
+                  {items.length === 0 ? (
+                    // 空の状態
+                    <div className="flex flex-col items-center justify-center py-16">
+                      <div className="text-6xl mb-4">📝</div>
+                      <p className="text-lg font-medium text-gray-700 mb-2">{t("emptyState")}</p>
+                      <p className="text-sm text-gray-500 mb-6 text-center max-w-md">
+                        {t("emptyDescription")}
+                      </p>
+                    </div>
+                  ) : filteredItems.length === 0 ? (
+                    // カテゴリが空の状態
+                    <div className="flex flex-col items-center justify-center py-16">
+                      <p className="text-sm text-gray-500">{t("categoryEmpty")}</p>
+                    </div>
+                  ) : (
+                    // Cards Grid
+                    <div className="grid grid-cols-2 gap-3">
+                      {filteredItems.map((item) => {
+                        const isLongContent = (item.answer?.length || 0) > 30;
                         return (
-                          <AccordionItem
-                            key={key}
-                            value={key}
-                            className={`border-2 rounded-lg ${accentColor} overflow-hidden`}
+                          <div
+                            key={item.id}
+                            className={`group bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-100 ${cardHoverBorder} ${
+                              isLongContent ? "col-span-2" : ""
+                            }`}
+                            onClick={() => setActiveItemId(activeItemId === item.id ? null : item.id)}
                           >
-                            <AccordionTrigger className="px-4 py-2 hover:no-underline hover:bg-muted/50">
-                              <div className="flex items-center gap-2.5 flex-1">
-                                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-background">
-                                  <CategoryIcon size={16} />
-                                </div>
-                                <span className="font-semibold text-sm">
-                                  {t(`category${key.charAt(0).toUpperCase() + key.slice(1)}` as any)}
-                                </span>
-                                <span className={`ml-auto px-2 py-0.5 text-xs rounded-full ${isOwn ? "bg-pink-200 text-pink-800" : "bg-blue-200 text-blue-800"}`}>
-                                  {categoryItems.length}
-                                </span>
+                            <div className="flex items-start justify-between mb-2">
+                              <span className={`text-[10px] font-medium ${labelColor} uppercase tracking-wider`}>
+                                {item.question}
+                              </span>
+                              <div className={`flex gap-0.5 transition-opacity ${
+                                activeItemId === item.id
+                                  ? "opacity-100"
+                                  : "opacity-0 group-hover:opacity-100"
+                              }`}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(item);
+                                  }}
+                                  className="p-1 rounded hover:bg-gray-100"
+                                >
+                                  <Edit className="w-3 h-3 text-gray-400" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletingItem(item);
+                                  }}
+                                  className="p-1 rounded hover:bg-gray-100"
+                                >
+                                  <Trash2 className="w-3 h-3 text-red-400" />
+                                </button>
                               </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-3 pt-1">
-                              {categoryItems.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-2">
-                                  このカテゴリーはまだ空です
-                                </p>
-                              ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                                  {categoryItems.map((item) => (
-                                    <div
-                                      key={item.id}
-                                      className="group relative border border-transparent hover:border-border rounded-md bg-background/50 hover:bg-muted/30 transition-all cursor-pointer"
-                                      onClick={() => setActiveItemId(activeItemId === item.id ? null : item.id)}
-                                    >
-                                      <div className="flex items-center justify-between gap-2 p-2 pr-1">
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm leading-tight">
-                                            <span className="text-xs font-medium text-muted-foreground">{item.question}:</span>
-                                            {item.answer && (
-                                              <span className="ml-1.5">{item.answer}</span>
-                                            )}
-                                            {!item.answer && item.date && (
-                                              <span className="ml-1.5 text-muted-foreground">{new Date(item.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                                            )}
-                                          </p>
-                                        </div>
-
-                                        {/* PC: ホバーで表示、スマホ: クリックで表示 */}
-                                        <div className={`flex gap-0.5 transition-opacity ${
-                                          activeItemId === item.id
-                                            ? "opacity-100"
-                                            : "opacity-0 md:group-hover:opacity-100"
-                                        }`}>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleEdit(item);
-                                            }}
-                                            className="h-7 w-7 p-0"
-                                          >
-                                            <Edit size={12} />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setDeletingItem(item);
-                                            }}
-                                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                          >
-                                            <Trash2 size={12} />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </AccordionContent>
-                          </AccordionItem>
+                            </div>
+                            <p className="text-sm text-gray-700 font-medium leading-relaxed">
+                              {item.answer || (item.date && new Date(item.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }))}
+                            </p>
+                          </div>
                         );
                       })}
-                    </Accordion>
-
-                    {/* 追加ボタン */}
-                    <div className="flex justify-center gap-2 pt-2">
-                      <Button
-                        onClick={() => setIsAddModalOpen(true)}
-                        variant="outline"
-                        className="gap-2"
-                      >
-                        <Plus size={18} />
-                        {t("addItem")}
-                      </Button>
-                      <Button
-                        onClick={() => setIsVoiceModalOpen(true)}
-                        variant="outline"
-                        className="gap-2"
-                      >
-                        <Mic size={18} />
-                        音声で追加
-                      </Button>
                     </div>
+                  )}
+
+                  {/* Add Buttons */}
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => setIsAddModalOpen(true)}
+                      className={`flex-1 py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 ${addButtonHover} transition-all flex items-center justify-center gap-2`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      {t("addItem")}
+                    </button>
+                    <button
+                      onClick={() => setIsVoiceModalOpen(true)}
+                      className={`flex-1 py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 ${addButtonHover} transition-all flex items-center justify-center gap-2`}
+                    >
+                      <Mic className="w-4 h-4" />
+                      {t("addByVoice")}
+                    </button>
                   </div>
-                )}
+                </div>
+              </div>
+
+              {/* Footer with stats */}
+              <div className="px-6 py-3 border-t border-gray-100 bg-white">
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span>{t("totalItems", { count: items.length })}</span>
+                  <span>{t("lastUpdated", { date: items.length > 0 ? new Date(Math.max(...items.map(i => new Date(i.updated_at || i.created_at).getTime()))).toLocaleDateString() : "-" })}</span>
+                </div>
               </div>
             </motion.div>
           </>

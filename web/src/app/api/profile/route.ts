@@ -143,6 +143,11 @@ export async function PUT(request: Request) {
   const body = await request.json();
   const { display_name, language } = body;
 
+  // Validate display_name (max 32 characters)
+  if (display_name && display_name.length > 32) {
+    return NextResponse.json({ error: "Display name must be 32 characters or less" }, { status: 400 });
+  }
+
   // Validate language
   const validLanguages = ["ja", "en", "zh", "ko", "es", "fr", "de", "pt", "vi", "th", "id", "tl"];
   if (language && !validLanguages.includes(language)) {
@@ -150,7 +155,7 @@ export async function PUT(request: Request) {
   }
 
   const updateData: Record<string, string> = {};
-  if (display_name !== undefined) updateData.display_name = display_name;
+  if (display_name !== undefined) updateData.display_name = display_name?.slice(0, 32) || display_name;
   if (language !== undefined) updateData.language = language;
 
   const { data: profile, error } = await supabase

@@ -63,119 +63,129 @@ export const ONBOARDING_QUESTIONS = [
   { category: 'lifestyle', question: '朝型？夜型？', placeholder: '例: 朝型です' },
 ] as const;
 
-// 達成レベル設定（修正可能）
-export const ACHIEVEMENT_LEVELS = [
+// ランク設定（5段階）
+export const RANK_TIERS = [
   {
-    level: 1,
+    id: 'beginner',
     minItems: 1,
-    maxItems: 5,
-    title: '取説ビギナー',
-    emoji: '🌱',
+    maxItems: 19,
+    title: 'ビギナー',
     message: '取説づくりをスタート！',
   },
   {
-    level: 2,
-    minItems: 6,
-    maxItems: 10,
-    title: '取説見習い',
-    emoji: '🌿',
+    id: 'apprentice',
+    minItems: 20,
+    maxItems: 49,
+    title: '見習い',
     message: 'もっと知っていこう！',
   },
   {
-    level: 3,
-    minItems: 11,
-    maxItems: 20,
-    title: '取説マスター見習い',
-    emoji: '🌳',
-    message: '順調に成長しています！',
-  },
-  {
-    level: 4,
-    minItems: 21,
-    maxItems: 30,
-    title: '取説マスター',
-    emoji: '🏆',
+    id: 'master',
+    minItems: 50,
+    maxItems: 99,
+    title: 'マスター',
     message: '素晴らしい理解度です！',
   },
   {
-    level: 5,
-    minItems: 31,
-    maxItems: 50,
-    title: '取説エキスパート',
-    emoji: '⭐',
+    id: 'expert',
+    minItems: 100,
+    maxItems: 169,
+    title: 'エキスパート',
     message: 'パートナーへの理解が深い！',
   },
   {
-    level: 6,
-    minItems: 51,
-    maxItems: 100,
-    title: '取説レジェンド',
-    emoji: '💎',
+    id: 'legend',
+    minItems: 170,
+    maxItems: Infinity,
+    title: 'レジェンド',
     message: '最高レベルの理解者！',
   },
 ] as const;
 
-// 達成バッジ設定
+// レベル計算: 項目数 ÷ 2（2項目ごとに1レベル）
+export function calculateLevel(itemCount: number): number {
+  return Math.max(1, Math.floor(itemCount / 2));
+}
+
+// 後方互換性のため維持（非推奨）
+export const ACHIEVEMENT_LEVELS = RANK_TIERS;
+
+// 達成バッジ設定（アイコンなし、シンプルなデザイン）
 export const ACHIEVEMENT_BADGES = [
   {
     id: 'first_item',
     title: '初めての1冊',
     description: '最初の項目を追加しました',
-    emoji: '🎉',
     condition: (count: number) => count >= 1,
   },
   {
-    id: 'basic_complete',
-    title: '基本情報コンプリート',
-    description: '基本情報をすべて埋めました',
-    emoji: '✨',
-    condition: (count: number, category?: string) => category === 'basic' && count >= 5,
-  },
-  {
     id: 'ten_items',
-    title: '10冊達成',
+    title: '10項目達成',
     description: '10項目を追加しました',
-    emoji: '🏅',
     condition: (count: number) => count >= 10,
   },
   {
     id: 'twenty_items',
-    title: '20冊達成',
-    description: '20項目を追加しました',
-    emoji: '🏆',
+    title: '20項目達成',
+    description: '見習いランクに到達',
     condition: (count: number) => count >= 20,
   },
   {
     id: 'fifty_items',
-    title: '50冊達成',
-    description: '50項目を追加しました',
-    emoji: '⭐',
+    title: '50項目達成',
+    description: 'マスターランクに到達',
     condition: (count: number) => count >= 50,
+  },
+  {
+    id: 'hundred_items',
+    title: '100項目達成',
+    description: 'エキスパートランクに到達',
+    condition: (count: number) => count >= 100,
   },
 ] as const;
 
-// 現在のレベルを取得
-export function getCurrentLevel(itemCount: number) {
+// 現在のランクを取得
+export function getCurrentRank(itemCount: number) {
+  if (itemCount === 0) {
+    return { ...RANK_TIERS[0], title: 'ビギナー' }; // 0項目でもビギナー表示
+  }
   return (
-    ACHIEVEMENT_LEVELS.find(
-      (level) => itemCount >= level.minItems && itemCount <= level.maxItems
-    ) || ACHIEVEMENT_LEVELS[ACHIEVEMENT_LEVELS.length - 1]
+    RANK_TIERS.find(
+      (tier) => itemCount >= tier.minItems && itemCount <= tier.maxItems
+    ) || RANK_TIERS[RANK_TIERS.length - 1]
   );
 }
 
-// 次のレベルまでの残り項目数を取得
-export function getItemsToNextLevel(itemCount: number) {
-  const currentLevel = getCurrentLevel(itemCount);
-  const currentLevelIndex = ACHIEVEMENT_LEVELS.findIndex(
-    (level) => level.level === currentLevel.level
-  );
-  const nextLevel = ACHIEVEMENT_LEVELS[currentLevelIndex + 1];
+// 後方互換性のため維持
+export function getCurrentLevel(itemCount: number) {
+  return getCurrentRank(itemCount);
+}
 
-  if (!nextLevel) {
-    return null; // 最高レベル到達
+// 次のランクまでの残り項目数を取得
+export function getItemsToNextRank(itemCount: number) {
+  const currentRank = getCurrentRank(itemCount);
+  const currentIndex = RANK_TIERS.findIndex(
+    (tier) => tier.id === currentRank.id
+  );
+  const nextRank = RANK_TIERS[currentIndex + 1];
+
+  if (!nextRank) {
+    return null; // 最高ランク（レジェンド）到達
   }
 
-  return nextLevel.minItems - itemCount;
+  return nextRank.minItems - itemCount;
+}
+
+// 後方互換性のため維持
+export function getItemsToNextLevel(itemCount: number) {
+  return getItemsToNextRank(itemCount);
+}
+
+// 次のレベルまでの残り項目数（2項目ごとに1レベル）
+export function getItemsToNextNumericLevel(itemCount: number) {
+  const currentLevel = calculateLevel(itemCount);
+  const nextLevelItems = (currentLevel + 1) * 2;
+  return nextLevelItems - itemCount;
 }
 
 // 新しく獲得したバッジを取得
@@ -183,4 +193,14 @@ export function getNewBadges(oldCount: number, newCount: number) {
   return ACHIEVEMENT_BADGES.filter(
     (badge) => !badge.condition(oldCount) && badge.condition(newCount)
   );
+}
+
+// 新しいランクに到達したかチェック
+export function getNewRank(oldCount: number, newCount: number) {
+  const oldRank = getCurrentRank(oldCount);
+  const newRank = getCurrentRank(newCount);
+  if (oldRank.id !== newRank.id) {
+    return newRank;
+  }
+  return null;
 }

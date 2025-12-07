@@ -43,6 +43,10 @@ CREATE POLICY "Users can view own usage"
   ON usage FOR SELECT
   USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can insert own usage"
+  ON usage FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
 CREATE POLICY "Users can update own usage"
   ON usage FOR UPDATE
   USING (auth.uid() = user_id);

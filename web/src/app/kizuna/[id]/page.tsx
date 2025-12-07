@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { Pencil, Trash2 } from "lucide-react";
 import { RatingIcon, RatingButton } from "@/components/kizuna/RatingIcon";
 import {
   ItemTypeIcon,
@@ -53,6 +54,7 @@ interface Topic {
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
+  partnership_id: string | null;
 }
 
 interface TopicListItem {
@@ -143,6 +145,7 @@ export default function KizunaDetailPage({
   const [loading, setLoading] = useState(true);
   const [allTopics, setAllTopics] = useState<TopicListItem[]>([]);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [hasActivePartnership, setHasActivePartnership] = useState(false);
 
   // ダイアログ状態
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -177,6 +180,14 @@ export default function KizunaDetailPage({
   const [isNewTopicDialogOpen, setIsNewTopicDialogOpen] = useState(false);
   const [newTopicTitle, setNewTopicTitle] = useState("");
   const [isCreatingTopic, setIsCreatingTopic] = useState(false);
+
+  // テーマ編集・削除
+  const [editingTopicForSidebar, setEditingTopicForSidebar] = useState<TopicListItem | null>(null);
+  const [editTopicTitle, setEditTopicTitle] = useState("");
+  const [isEditTopicDialogOpen, setIsEditTopicDialogOpen] = useState(false);
+  const [isUpdatingTopic, setIsUpdatingTopic] = useState(false);
+  const [deletingTopicForSidebar, setDeletingTopicForSidebar] = useState<TopicListItem | null>(null);
+  const [isDeletingTopic, setIsDeletingTopic] = useState(false);
 
   useEffect(() => {
     fetchTopic();
@@ -243,6 +254,7 @@ export default function KizunaDetailPage({
       setTopic(data.topic);
       setItems(data.items || []);
       setParentItems(data.parentItems || []);
+      setHasActivePartnership(data.hasActivePartnership || false);
     } catch (error) {
       console.error("Error fetching topic:", error);
       toast.error(t("fetchFailed"));
@@ -329,6 +341,78 @@ export default function KizunaDetailPage({
       toast.error(t("recordingFailed"));
     } finally {
       setIsCreatingTopic(false);
+    }
+  };
+
+  const openEditTopicDialog = (topicItem: TopicListItem) => {
+    setEditingTopicForSidebar(topicItem);
+    setEditTopicTitle(topicItem.title);
+    setIsEditTopicDialogOpen(true);
+  };
+
+  const updateTopicTitle = async () => {
+    if (!editingTopicForSidebar || !editTopicTitle.trim()) return;
+
+    setIsUpdatingTopic(true);
+    try {
+      const res = await fetch(`/api/kizuna/topics/${editingTopicForSidebar.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTopicTitle.trim() }),
+      });
+
+      if (res.ok) {
+        toast.success("テーマ名を変更しました");
+        setIsEditTopicDialogOpen(false);
+        setEditingTopicForSidebar(null);
+        fetchAllTopics();
+        // 現在のテーマを編集した場合はトピックも更新
+        if (editingTopicForSidebar.id === id) {
+          fetchTopic();
+        }
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "変更に失敗しました");
+      }
+    } catch (error) {
+      console.error("Error updating topic:", error);
+      toast.error("変更に失敗しました");
+    } finally {
+      setIsUpdatingTopic(false);
+    }
+  };
+
+  const openDeleteTopicDialog = (topicItem: TopicListItem) => {
+    setDeletingTopicForSidebar(topicItem);
+  };
+
+  const deleteTopicFromSidebar = async () => {
+    if (!deletingTopicForSidebar) return;
+
+    setIsDeletingTopic(true);
+    try {
+      const res = await fetch(`/api/kizuna/topics/${deletingTopicForSidebar.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast.success("テーマを削除しました");
+        setDeletingTopicForSidebar(null);
+        // 現在のテーマを削除した場合は一覧に戻る
+        if (deletingTopicForSidebar.id === id) {
+          router.push("/kizuna");
+        } else {
+          fetchAllTopics();
+        }
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "削除に失敗しました");
+      }
+    } catch (error) {
+      console.error("Error deleting topic:", error);
+      toast.error("削除に失敗しました");
+    } finally {
+      setIsDeletingTopic(false);
     }
   };
 
@@ -491,11 +575,13 @@ export default function KizunaDetailPage({
           allTopics={allTopics}
           currentTopicId={id}
           currentTopicTitle={tc("loading")}
+          onEditTopic={openEditTopicDialog}
+          onDeleteTopic={openDeleteTopicDialog}
           t={t}
           tc={tc}
         />
         <div className="flex">
-          <Sidebar topics={allTopics} currentTopicId={id} onNewTopic={() => setIsNewTopicDialogOpen(true)} t={t} />
+          <Sidebar topics={allTopics} currentTopicId={id} onNewTopic={() => setIsNewTopicDialogOpen(true)} onEditTopic={openEditTopicDialog} onDeleteTopic={openDeleteTopicDialog} t={t} />
           <main className="flex-1 px-4 py-8 md:pl-8 max-w-2xl mx-auto md:mx-0">
             <div className="space-y-4">
               <div className="h-8 w-48 bg-muted rounded animate-pulse" />
@@ -519,6 +605,8 @@ export default function KizunaDetailPage({
         allTopics={allTopics}
         currentTopicId={id}
         currentTopicTitle={topic.title}
+        onEditTopic={openEditTopicDialog}
+        onDeleteTopic={openDeleteTopicDialog}
         t={t}
         tc={tc}
       />
@@ -529,6 +617,8 @@ export default function KizunaDetailPage({
           topics={allTopics}
           currentTopicId={id}
           onNewTopic={() => setIsNewTopicDialogOpen(true)}
+          onEditTopic={openEditTopicDialog}
+          onDeleteTopic={openDeleteTopicDialog}
           t={t}
         />
 
@@ -705,12 +795,14 @@ export default function KizunaDetailPage({
                           {t("myFeeling")}
                         </span>
                       </SelectItem>
-                      <SelectItem value="partner_feeling">
-                        <span className="flex items-center gap-2">
-                          <ItemTypeIcon type="partner_feeling" size={16} />
-                          {t("partnerFeeling")}
-                        </span>
-                      </SelectItem>
+                      {hasActivePartnership && (
+                        <SelectItem value="partner_feeling">
+                          <span className="flex items-center gap-2">
+                            <ItemTypeIcon type="partner_feeling" size={16} />
+                            {t("partnerFeeling")}
+                          </span>
+                        </SelectItem>
+                      )}
                       <SelectItem value="memo">
                         <span className="flex items-center gap-2">
                           <ItemTypeIcon type="memo" size={16} />
@@ -732,8 +824,12 @@ export default function KizunaDetailPage({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="self">{t("self")}</SelectItem>
-                    <SelectItem value="partner">{t("partner")}</SelectItem>
-                    <SelectItem value="both">{t("both")}</SelectItem>
+                    {hasActivePartnership && (
+                      <>
+                        <SelectItem value="partner">{t("partner")}</SelectItem>
+                        <SelectItem value="both">{t("both")}</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1092,6 +1188,72 @@ export default function KizunaDetailPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* テーマ編集ダイアログ */}
+      <Dialog open={isEditTopicDialogOpen} onOpenChange={(open) => {
+        setIsEditTopicDialogOpen(open);
+        if (!open) setEditingTopicForSidebar(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>テーマ名を変更</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">テーマ名</label>
+            <Input
+              className="mt-1"
+              value={editTopicTitle}
+              onChange={(e) => setEditTopicTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditTopicDialogOpen(false);
+                setEditingTopicForSidebar(null);
+              }}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              onClick={updateTopicTitle}
+              disabled={!editTopicTitle.trim() || isUpdatingTopic}
+            >
+              {isUpdatingTopic ? "変更中..." : "変更"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* テーマ削除確認ダイアログ */}
+      <AlertDialog open={!!deletingTopicForSidebar} onOpenChange={(open) => {
+        if (!open) setDeletingTopicForSidebar(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>テーマを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{deletingTopicForSidebar?.title}」を削除します。このテーマに含まれるすべての記録も削除されます。この操作は取り消せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingTopic}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteTopicFromSidebar}
+              disabled={isDeletingTopic}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingTopic ? "削除中..." : "削除"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1450,11 +1612,15 @@ function Sidebar({
   topics,
   currentTopicId,
   onNewTopic,
+  onEditTopic,
+  onDeleteTopic,
   t,
 }: {
   topics: TopicListItem[];
   currentTopicId: string;
   onNewTopic: () => void;
+  onEditTopic: (topic: TopicListItem) => void;
+  onDeleteTopic: (topic: TopicListItem) => void;
   t: any;
 }) {
   const activeTopics = topics.filter((t) => t.status === "active");
@@ -1481,23 +1647,53 @@ function Sidebar({
             <p className="text-xs text-muted-foreground mb-2 px-2">{t("continueLabel")}</p>
             <nav className="space-y-1">
               {activeTopics.map((topic) => (
-                <Link
-                  key={topic.id}
-                  href={`/kizuna/${topic.id}`}
-                  className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm transition-colors ${
-                    topic.id === currentTopicId
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted"
-                  }`}
-                >
-                  <TopicStatusIcon status={topic.status} size={16} />
-                  <span className="flex-1 truncate">{topic.title}</span>
-                  {topic.review_due_count > 0 && (
-                    <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] bg-orange-500 text-white rounded-full">
-                      {topic.review_due_count}
-                    </span>
-                  )}
-                </Link>
+                <div key={topic.id} className="group relative">
+                  <Link
+                    href={`/kizuna/${topic.id}`}
+                    className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm transition-colors ${
+                      topic.id === currentTopicId
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <TopicStatusIcon status={topic.status} size={16} />
+                    <span className="flex-1 truncate pr-12">{topic.title}</span>
+                    {topic.review_due_count > 0 && (
+                      <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] bg-orange-500 text-white rounded-full">
+                        {topic.review_due_count}
+                      </span>
+                    )}
+                  </Link>
+                  {/* 編集・削除ボタン（ホバー時表示） */}
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onEditTopic(topic);
+                      }}
+                      className={`p-1 rounded hover:bg-background/50 transition-colors ${
+                        topic.id === currentTopicId ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="テーマ名を変更"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDeleteTopic(topic);
+                      }}
+                      className={`p-1 rounded hover:bg-destructive/20 transition-colors ${
+                        topic.id === currentTopicId ? "text-primary-foreground/70 hover:text-destructive" : "text-muted-foreground hover:text-destructive"
+                      }`}
+                      title="テーマを削除"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
               ))}
             </nav>
           </div>
@@ -1509,18 +1705,48 @@ function Sidebar({
             <p className="text-xs text-muted-foreground mb-2 px-2">{t("resolvedLabel")}</p>
             <nav className="space-y-1">
               {resolvedTopics.map((topic) => (
-                <Link
-                  key={topic.id}
-                  href={`/kizuna/${topic.id}`}
-                  className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm transition-colors ${
-                    topic.id === currentTopicId
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted text-muted-foreground"
-                  }`}
-                >
-                  <TopicStatusIcon status={topic.status} size={16} />
-                  <span className="flex-1 truncate">{topic.title}</span>
-                </Link>
+                <div key={topic.id} className="group relative">
+                  <Link
+                    href={`/kizuna/${topic.id}`}
+                    className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm transition-colors ${
+                      topic.id === currentTopicId
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <TopicStatusIcon status={topic.status} size={16} />
+                    <span className="flex-1 truncate pr-12">{topic.title}</span>
+                  </Link>
+                  {/* 編集・削除ボタン（ホバー時表示） */}
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onEditTopic(topic);
+                      }}
+                      className={`p-1 rounded hover:bg-background/50 transition-colors ${
+                        topic.id === currentTopicId ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="テーマ名を変更"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDeleteTopic(topic);
+                      }}
+                      className={`p-1 rounded hover:bg-destructive/20 transition-colors ${
+                        topic.id === currentTopicId ? "text-primary-foreground/70 hover:text-destructive" : "text-muted-foreground hover:text-destructive"
+                      }`}
+                      title="テーマを削除"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
               ))}
             </nav>
           </div>
@@ -1553,6 +1779,8 @@ function Header({
   allTopics,
   currentTopicId,
   currentTopicTitle,
+  onEditTopic,
+  onDeleteTopic,
   t,
   tc,
 }: {
@@ -1560,6 +1788,8 @@ function Header({
   allTopics: TopicListItem[];
   currentTopicId: string;
   currentTopicTitle: string;
+  onEditTopic: (topic: TopicListItem) => void;
+  onDeleteTopic: (topic: TopicListItem) => void;
   t: any;
   tc: any;
 }) {
@@ -1636,26 +1866,49 @@ function Header({
                       {allTopics
                         .filter((t) => t.status === "active")
                         .map((topic) => (
-                          <button
-                            key={topic.id}
-                            onClick={() => {
-                              router.push(`/kizuna/${topic.id}`);
-                              setIsDropdownOpen(false);
-                            }}
-                            className={`flex items-center gap-2 w-full px-2 py-2 rounded-md text-sm text-left transition-colors ${
-                              topic.id === currentTopicId
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-muted"
-                            }`}
-                          >
-                            <TopicStatusIcon status={topic.status} size={16} />
-                            <span className="flex-1 truncate">{topic.title}</span>
-                            {topic.review_due_count > 0 && (
-                              <span className="px-1.5 py-0.5 text-[10px] bg-orange-500 text-white rounded-full">
-                                {topic.review_due_count}
-                              </span>
-                            )}
-                          </button>
+                          <div key={topic.id} className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                router.push(`/kizuna/${topic.id}`);
+                                setIsDropdownOpen(false);
+                              }}
+                              className={`flex items-center gap-2 flex-1 px-2 py-2 rounded-md text-sm text-left transition-colors ${
+                                topic.id === currentTopicId
+                                  ? "bg-primary text-primary-foreground"
+                                  : "hover:bg-muted"
+                              }`}
+                            >
+                              <TopicStatusIcon status={topic.status} size={16} />
+                              <span className="flex-1 truncate">{topic.title}</span>
+                              {topic.review_due_count > 0 && (
+                                <span className="px-1.5 py-0.5 text-[10px] bg-orange-500 text-white rounded-full">
+                                  {topic.review_due_count}
+                                </span>
+                              )}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsDropdownOpen(false);
+                                onEditTopic(topic);
+                              }}
+                              className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                              title="テーマ名を変更"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsDropdownOpen(false);
+                                onDeleteTopic(topic);
+                              }}
+                              className="p-1.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                              title="テーマを削除"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         ))}
                     </>
                   )}
@@ -1665,21 +1918,44 @@ function Header({
                       {allTopics
                         .filter((t) => t.status === "resolved")
                         .map((topic) => (
-                          <button
-                            key={topic.id}
-                            onClick={() => {
-                              router.push(`/kizuna/${topic.id}`);
-                              setIsDropdownOpen(false);
-                            }}
-                            className={`flex items-center gap-2 w-full px-2 py-2 rounded-md text-sm text-left transition-colors ${
-                              topic.id === currentTopicId
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            <TopicStatusIcon status={topic.status} size={16} />
-                            <span className="flex-1 truncate">{topic.title}</span>
-                          </button>
+                          <div key={topic.id} className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                router.push(`/kizuna/${topic.id}`);
+                                setIsDropdownOpen(false);
+                              }}
+                              className={`flex items-center gap-2 flex-1 px-2 py-2 rounded-md text-sm text-left transition-colors ${
+                                topic.id === currentTopicId
+                                  ? "bg-primary text-primary-foreground"
+                                  : "hover:bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              <TopicStatusIcon status={topic.status} size={16} />
+                              <span className="flex-1 truncate">{topic.title}</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsDropdownOpen(false);
+                                onEditTopic(topic);
+                              }}
+                              className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                              title="テーマ名を変更"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsDropdownOpen(false);
+                                onDeleteTopic(topic);
+                              }}
+                              className="p-1.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                              title="テーマを削除"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         ))}
                     </>
                   )}

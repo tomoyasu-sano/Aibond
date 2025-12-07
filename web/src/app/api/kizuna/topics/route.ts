@@ -25,19 +25,17 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const status = searchParams.get("status"); // 'active' | 'resolved' | null(all)
 
-  // ユーザーのパートナーシップを取得
+  // ユーザーのパートナーシップを取得 (status='active' のもの)
+  // history_deleted_at が設定されていても、連携中ならパートナーシップとして扱う
   const { data: partnership } = await supabase
     .from("partnerships")
-    .select("id")
+    .select("id, history_deleted_at")
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
     .eq("status", "active")
     .single();
 
-  if (!partnership) {
-    return NextResponse.json({ topics: [], total: 0 });
-  }
-
-  // クエリ構築
+  // クエリ構築: パートナーありの場合はpartnership_id、なしの場合はcreated_by + partnership_id IS NULL
+  // 論理削除されていないもののみ取得
   let query = supabase
     .from("kizuna_topics")
     .select(
@@ -51,8 +49,20 @@ export async function GET(request: NextRequest) {
     `,
       { count: "exact" }
     )
-    .eq("partnership_id", partnership.id)
+    .is("deleted_at", null)
     .order("updated_at", { ascending: false });
+
+  if (partnership) {
+    // パートナーありの場合: partnership_idで絞り込み
+    query = query.eq("partnership_id", partnership.id);
+    // history_deleted_at が設定されている場合、それ以降に作成されたトピックのみ表示
+    if (partnership.history_deleted_at) {
+      query = query.gt("created_at", partnership.history_deleted_at);
+    }
+  } else {
+    // パートナーなしの場合: 自分が作成した、partnership_idがnullのもの
+    query = query.is("partnership_id", null).eq("created_by", user.id);
+  }
 
   if (status) {
     query = query.eq("status", status);
@@ -131,7 +141,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ユーザーのパートナーシップを取得
+    // ユーザーのパートナーシップを取得 (status='active' のもの)
+    // history_deleted_at が設定されていても、連携中ならパートナーシップとして扱う
     const { data: partnership } = await supabase
       .from("partnerships")
       .select("id")
@@ -139,18 +150,11 @@ export async function POST(request: NextRequest) {
       .eq("status", "active")
       .single();
 
-    if (!partnership) {
-      return NextResponse.json(
-        { error: "Partnership not found" },
-        { status: 400 }
-      );
-    }
-
-    // テーマを作成
+    // テーマを作成（パートナーなしでもOK）
     const { data: topic, error } = await supabase
       .from("kizuna_topics")
       .insert({
-        partnership_id: partnership.id,
+        partnership_id: partnership?.id || null,
         title: title.trim(),
         created_by: user.id,
       })

@@ -30,6 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
 import { toast } from "sonner";
 import { LANGUAGES, PLAN_LIMITS, type LanguageCode, type PlanType } from "@/types/database";
 
@@ -268,7 +269,8 @@ function SettingsContent() {
                   id="displayName"
                   placeholder={t("displayNamePlaceholder")}
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  onChange={(e) => setDisplayName(e.target.value.slice(0, 32))}
+                  maxLength={32}
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("displayNameHint")}
@@ -539,6 +541,27 @@ function SettingsContent() {
                   {t("privacyPolicy")}
                 </Button>
               </Link>
+              <Link href="/tokushoho" className="block">
+                <Button variant="ghost" className="w-full justify-start">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-2"
+                  >
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
+                  {t("tokushoho")}
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
@@ -558,14 +581,12 @@ function Header({ t, tc, displayName, onSignOut }: { t: ReturnType<typeof useTra
         </Link>
         <nav className="flex items-center gap-2 md:gap-4">
           <LanguageSwitcher />
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="px-2 md:px-3">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="md:hidden">
-                <path d="m15 18-6-6 6-6"/>
-              </svg>
-              <span className="hidden md:inline">{t("backToDashboard")}</span>
-            </Button>
+          {/* PC: テキストリンク */}
+          <Link href="/dashboard" className="hidden md:block">
+            <Button variant="ghost" size="sm">{t("backToDashboard")}</Button>
           </Link>
+          {/* モバイル: ハンバーガーメニュー */}
+          <MobileNavMenu />
           {displayName && (
             <span className="hidden md:inline text-sm text-muted-foreground">{displayName}</span>
           )}

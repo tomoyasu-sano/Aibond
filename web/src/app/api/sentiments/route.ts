@@ -25,11 +25,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const period = parseInt(url.searchParams.get("period") || "90");
   const limit = parseInt(url.searchParams.get("limit") || "50");
+  const statusFilter = url.searchParams.get("status"); // "completed" など
 
-  // パートナーシップを取得
+  // パートナーシップを取得（history_deleted_at含む）
   const { data: partnership } = await supabase
     .from("partnerships")
-    .select("id")
+    .select("id, history_deleted_at")
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
     .eq("status", "active")
     .single();
@@ -42,12 +43,15 @@ export async function GET(request: Request) {
     });
   }
 
+  const historyDeletedAt = partnership.history_deleted_at;
+
   // 期間の開始日を計算
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - period);
 
   // 分析結果を取得
-  const { data: sentiments, error } = await supabase
+  // talks!inner で内部結合し、deleted_at IS NULL のレコードのみ取得
+  let query = supabase
     .from("talk_sentiments")
     .select(`
       id,
@@ -66,10 +70,23 @@ export async function GET(request: Request) {
       talk_duration_minutes,
       talk_time_of_day,
       talk_day_of_week,
-      talks(started_at, summary, speaker1_name, speaker2_name)
+      talks!inner(started_at, summary, speaker1_name, speaker2_name, deleted_at)
     `)
     .eq("partnership_id", partnership.id)
     .gte("analyzed_at", startDate.toISOString())
+    .is("talks.deleted_at", null);
+
+  // history_deleted_at が設定されている場合、それ以降の会話のみ表示
+  if (historyDeletedAt) {
+    query = query.gt("talks.started_at", historyDeletedAt);
+  }
+
+  // statusフィルターがある場合は適用
+  if (statusFilter) {
+    query = query.eq("status", statusFilter);
+  }
+
+  const { data: sentiments, error } = await query
     .order("analyzed_at", { ascending: false })
     .limit(limit);
 
@@ -206,6 +223,14 @@ export async function GET(request: Request) {
   const formattedSentiments = sentiments?.map((s) => {
     // talks is a foreign key relation (one-to-one)
     const talk = s.talks as unknown as { started_at?: string; summary?: string; speaker1_name?: string; speaker2_name?: string } | null;
+    const insights = s.ai_insights as {
+      goodPoints?: string[];
+      concerns?: string[];
+      suggestions?: string[];
+      comparisonWithPrevious?: string;
+      overallComment?: string;
+    } | null;
+
     return {
       id: s.id,
       talkId: s.talk_id,
@@ -223,7 +248,12 @@ export async function GET(request: Request) {
       constructivenessScore: s.constructiveness_score,
       understandingScore: s.understanding_score,
       overallScore: s.overall_score,
-      overallComment: (s.ai_insights as { overallComment?: string })?.overallComment,
+      // AI insights
+      goodPoints: insights?.goodPoints || [],
+      concerns: insights?.concerns || [],
+      suggestions: insights?.suggestions || [],
+      comparisonWithPrevious: insights?.comparisonWithPrevious || "",
+      overallComment: insights?.overallComment || "",
       talkDurationMinutes: s.talk_duration_minutes,
       talkTimeOfDay: s.talk_time_of_day,
       talkDayOfWeek: s.talk_day_of_week,

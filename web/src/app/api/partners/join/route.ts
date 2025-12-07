@@ -75,33 +75,68 @@ export async function POST(request: Request) {
   // Normalize user IDs (smaller UUID = user1_id)
   const [user1_id, user2_id] = [invitation.inviter_id, user.id].sort();
 
-  // Get inviter's language as main_language
-  const { data: inviterProfile } = await supabase
-    .from("user_profiles")
-    .select("language")
-    .eq("id", invitation.inviter_id)
-    .single();
-
-  const mainLanguage = inviterProfile?.language || "ja";
-
-  // Create partnership
-  const { data: partnership, error: partnershipError } = await supabase
+  // Check if there's an existing unlinked partnership between these users
+  const { data: existingUnlinked } = await supabase
     .from("partnerships")
-    .insert({
-      user1_id,
-      user2_id,
-      main_language: mainLanguage,
-      status: "active",
-    })
-    .select()
+    .select("*")
+    .eq("user1_id", user1_id)
+    .eq("user2_id", user2_id)
+    .eq("status", "unlinked")
     .single();
 
-  if (partnershipError) {
-    console.error("Error creating partnership:", partnershipError);
-    return NextResponse.json(
-      { error: "パートナーシップの作成に失敗しました" },
-      { status: 500 }
-    );
+  let partnership;
+
+  if (existingUnlinked) {
+    // Reactivate existing partnership
+    const { data: reactivated, error: reactivateError } = await supabase
+      .from("partnerships")
+      .update({
+        status: "active",
+        history_deleted_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingUnlinked.id)
+      .select()
+      .single();
+
+    if (reactivateError) {
+      console.error("Error reactivating partnership:", reactivateError);
+      return NextResponse.json(
+        { error: "パートナーシップの再開に失敗しました" },
+        { status: 500 }
+      );
+    }
+    partnership = reactivated;
+  } else {
+    // Get inviter's language as main_language
+    const { data: inviterProfile } = await supabase
+      .from("user_profiles")
+      .select("language")
+      .eq("id", invitation.inviter_id)
+      .single();
+
+    const mainLanguage = inviterProfile?.language || "ja";
+
+    // Create new partnership
+    const { data: newPartnership, error: partnershipError } = await supabase
+      .from("partnerships")
+      .insert({
+        user1_id,
+        user2_id,
+        main_language: mainLanguage,
+        status: "active",
+      })
+      .select()
+      .single();
+
+    if (partnershipError) {
+      console.error("Error creating partnership:", partnershipError);
+      return NextResponse.json(
+        { error: "パートナーシップの作成に失敗しました" },
+        { status: 500 }
+      );
+    }
+    partnership = newPartnership;
   }
 
   // Mark invitation as used

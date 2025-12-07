@@ -27,16 +27,42 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // テーマを取得
+  // テーマを取得（パートナーシップ情報含む、LEFT JOINでpartnership_id NULLにも対応）
+  // 論理削除されたテーマは取得しない
   const { data: topic, error: topicError } = await supabase
     .from("kizuna_topics")
-    .select("*")
+    .select("*, partnership:partnerships(id, status, history_deleted_at)")
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (topicError || !topic) {
     return NextResponse.json({ error: "Topic not found" }, { status: 404 });
   }
+
+  // パートナーシップなしの場合は、作成者のみアクセス可
+  if (!topic.partnership_id && topic.created_by !== user.id) {
+    return NextResponse.json({ error: "Topic not found" }, { status: 404 });
+  }
+
+  // history_deleted_at が設定されていて、トピックがそれより前に作成された場合は非表示
+  if (topic.partnership?.history_deleted_at) {
+    const historyDeletedAt = new Date(topic.partnership.history_deleted_at);
+    const topicCreatedAt = new Date(topic.created_at);
+    if (topicCreatedAt <= historyDeletedAt) {
+      return NextResponse.json({ error: "Topic not found" }, { status: 404 });
+    }
+  }
+
+  // 現在ユーザーにアクティブなパートナーシップがあるか確認
+  const { data: activePartnership } = await supabase
+    .from("partnerships")
+    .select("id, history_deleted_at")
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .eq("status", "active")
+    .single();
+
+  const hasActivePartnership = !!activePartnership;
 
   // 親カード（promise, request, discussion）を取得
   const { data: parentItems, error: parentError } = await supabase
@@ -94,6 +120,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     items: allItems, // 旧形式（フラット）
     parentItems: itemsWithChildren, // 新形式（親子構造）
     orphanChildren, // 未分類の子カード
+    hasActivePartnership, // 現在アクティブなパートナーシップがあるか
   });
 }
 
@@ -164,7 +191,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 }
 
-// DELETE - テーマ削除
+// DELETE - テーマ削除（論理削除）
 export async function DELETE(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const supabase = await createClient();
@@ -178,10 +205,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // 論理削除（deleted_atを設定）
   const { error } = await supabase
     .from("kizuna_topics")
-    .delete()
-    .eq("id", id);
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
 
   if (error) {
     console.error("[Kizuna Topics] Error deleting:", error);

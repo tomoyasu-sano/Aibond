@@ -15,6 +15,18 @@ interface ChatMessage {
   timestamp: string;
 }
 
+// プランチェック用ヘルパー関数
+async function checkPaidPlan(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<boolean> {
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("plan")
+    .eq("user_id", userId)
+    .single();
+
+  const plan = subscription?.plan || "free";
+  return plan !== "free"; // standard または premium は有料
+}
+
 // GET - 相談一覧取得
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -28,16 +40,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // 有料プランチェック
+  const isPaidUser = await checkPaidPlan(supabase, user.id);
+  if (!isPaidUser) {
+    return NextResponse.json(
+      { error: "AI相談は有料プラン限定の機能です", code: "PLAN_REQUIRED" },
+      { status: 403 }
+    );
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const consultationId = searchParams.get("id");
 
-  // 特定の相談を取得
+  // 特定の相談を取得（削除済みを除外）
   if (consultationId) {
     const { data: consultation, error } = await supabase
       .from("ai_consultations")
       .select("*")
       .eq("id", consultationId)
       .eq("user_id", user.id)
+      .is("deleted_at", null)
       .single();
 
     if (error || !consultation) {
@@ -50,11 +72,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ consultation });
   }
 
-  // 一覧取得
+  // 一覧取得（削除済みを除外）
   const { data: consultations, error } = await supabase
     .from("ai_consultations")
     .select("id, title, created_at, updated_at")
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("updated_at", { ascending: false })
     .limit(50);
 
@@ -79,6 +102,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // 有料プランチェック
+  const isPaidUser = await checkPaidPlan(supabase, user.id);
+  if (!isPaidUser) {
+    return NextResponse.json(
+      { error: "AI相談は有料プラン限定の機能です", code: "PLAN_REQUIRED" },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { consultation_id, message } = body;
@@ -93,13 +125,14 @@ export async function POST(request: NextRequest) {
     let consultation;
     let chatHistory: ChatMessage[] = [];
 
-    // 既存の相談に追加 or 新規作成
+    // 既存の相談に追加 or 新規作成（削除済みを除外）
     if (consultation_id) {
       const { data, error } = await supabase
         .from("ai_consultations")
         .select("*")
         .eq("id", consultation_id)
         .eq("user_id", user.id)
+        .is("deleted_at", null)
         .single();
 
       if (error || !data) {

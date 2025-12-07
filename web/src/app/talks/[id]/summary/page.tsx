@@ -40,6 +40,10 @@ interface Talk {
   speaker2_name: string | null;
   speaker1_user_id: string | null;
   speaker2_user_id: string | null;
+  partnership_id: string | null;
+  pending_bond_notes: any[] | null;
+  pending_manual_items: any[] | null;
+  owner_user_id: string;
 }
 
 export default function SummaryPage() {
@@ -60,6 +64,13 @@ export default function SummaryPage() {
   const [showBondNoteDialog, setShowBondNoteDialog] = useState(false);
   const [isSavingBondNotes, setIsSavingBondNotes] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [hasProcessedPendingBondNotes, setHasProcessedPendingBondNotes] = useState(false);
+
+  // 取説関連のstate
+  const [manualItems, setManualItems] = useState<any[]>([]);
+  const [showManualDialog, setShowManualDialog] = useState(false);
+  const [isSavingManualItems, setIsSavingManualItems] = useState(false);
+  const [hasProcessedPendingManualItems, setHasProcessedPendingManualItems] = useState(false);
 
   useEffect(() => {
     fetchTalk();
@@ -78,9 +89,47 @@ export default function SummaryPage() {
     }
   }, [talk?.summary_status, hasShownMapping, talk?.speaker1_user_id, talk?.speaker2_user_id]);
 
+  // pending_bond_notes がある場合、初回ロード時に絆ノートダイアログを表示
+  useEffect(() => {
+    if (
+      talk?.summary_status === "generated" &&
+      talk.pending_bond_notes &&
+      talk.pending_bond_notes.length > 0 &&
+      talk.partnership_id &&
+      !hasProcessedPendingBondNotes
+    ) {
+      setBondNoteItems(talk.pending_bond_notes);
+      setPartnershipId(talk.partnership_id);
+      setShowBondNoteDialog(true);
+      setHasProcessedPendingBondNotes(true);
+    }
+  }, [talk?.summary_status, talk?.pending_bond_notes, talk?.partnership_id, hasProcessedPendingBondNotes]);
+
+  // pending_manual_items がある場合、取説ダイアログを表示
+  // 絆ノートダイアログがある場合はそちらを先に処理してから表示
+  useEffect(() => {
+    if (
+      talk?.summary_status === "generated" &&
+      talk.pending_manual_items &&
+      talk.pending_manual_items.length > 0 &&
+      !hasProcessedPendingManualItems &&
+      !showBondNoteDialog // 絆ノートダイアログが閉じられた後に表示
+    ) {
+      // 絆ノートがある場合は、先に絆ノートを処理してからでないと表示しない
+      const hasPendingBondNotes = talk.pending_bond_notes && talk.pending_bond_notes.length > 0 && talk.partnership_id;
+      if (hasPendingBondNotes && !hasProcessedPendingBondNotes) {
+        // 絆ノートがまだ処理されていない場合は待機
+        return;
+      }
+      setManualItems(talk.pending_manual_items);
+      setShowManualDialog(true);
+      setHasProcessedPendingManualItems(true);
+    }
+  }, [talk?.summary_status, talk?.pending_manual_items, talk?.pending_bond_notes, talk?.partnership_id, hasProcessedPendingManualItems, hasProcessedPendingBondNotes, showBondNoteDialog]);
+
   useEffect(() => {
     // サマリー生成中の場合、ポーリングで更新を監視
-    if (talk?.summary_status === "pending") {
+    if (talk?.summary_status === "pending" || talk?.summary_status === "generating") {
       const interval = setInterval(fetchTalk, 3000);
       return () => clearInterval(interval);
     }
@@ -138,6 +187,15 @@ export default function SummaryPage() {
           setShowBondNoteDialog(true);
         }
 
+        // 取説項目があればセット（絆ノートダイアログが閉じた後に表示される）
+        if (data.manualItems && data.manualItems.length > 0) {
+          setManualItems(data.manualItems);
+          // 絆ノートダイアログがない場合は直接表示
+          if (!data.bondNoteItems || data.bondNoteItems.length === 0 || !data.partnershipId) {
+            setShowManualDialog(true);
+          }
+        }
+
         toast.success(t("generatingMessage"));
       } else {
         toast.error(t("generationFailed"));
@@ -147,6 +205,19 @@ export default function SummaryPage() {
       toast.error(t("generationFailed"));
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // pending_bond_notes をクリアする
+  const clearPendingBondNotes = async () => {
+    try {
+      await fetch(`/api/talks/${talkId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pending_bond_notes: null }),
+      });
+    } catch (error) {
+      console.error("Error clearing pending bond notes:", error);
     }
   };
 
@@ -172,6 +243,8 @@ export default function SummaryPage() {
         );
         setShowBondNoteDialog(false);
         setBondNoteItems([]);
+        // pending_bond_notes をクリア
+        await clearPendingBondNotes();
       } else {
         toast.error("絆ノートへの追加に失敗しました");
       }
@@ -181,6 +254,125 @@ export default function SummaryPage() {
     } finally {
       setIsSavingBondNotes(false);
     }
+  };
+
+  // ダイアログをキャンセルした時も pending_bond_notes をクリア
+  const handleBondNoteDialogClose = async (open: boolean) => {
+    setShowBondNoteDialog(open);
+    if (!open && hasProcessedPendingBondNotes) {
+      // ダイアログを閉じた場合、pending_bond_notes をクリア
+      await clearPendingBondNotes();
+    }
+  };
+
+  // pending_manual_items をクリアする
+  const clearPendingManualItems = async () => {
+    try {
+      await fetch(`/api/talks/${talkId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pending_manual_items: null }),
+      });
+    } catch (error) {
+      console.error("Error clearing pending manual items:", error);
+    }
+  };
+
+  // 取説項目を保存
+  const saveManualItems = async () => {
+    if (!talk || manualItems.length === 0) return;
+
+    setIsSavingManualItems(true);
+    try {
+      // 話者ごとに分けて保存
+      const speaker1Items = manualItems.filter((item) => item.speakerTag === 1);
+      const speaker2Items = manualItems.filter((item) => item.speakerTag === 2);
+
+      let savedCount = 0;
+
+      // 話者1の取説（自分）
+      if (speaker1Items.length > 0 && talk.speaker1_user_id) {
+        const res = await fetch("/api/manual/items/bulk-create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target_user_id: talk.speaker1_user_id,
+            items: speaker1Items.map((item) => ({
+              category: item.category,
+              question: item.question,
+              answer: item.answer,
+              date: item.date,
+            })),
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          savedCount += data.count || 0;
+        }
+      }
+
+      // 話者2の取説（パートナー）
+      if (speaker2Items.length > 0 && talk.speaker2_user_id) {
+        const res = await fetch("/api/manual/items/bulk-create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target_user_id: talk.speaker2_user_id,
+            items: speaker2Items.map((item) => ({
+              category: item.category,
+              question: item.question,
+              answer: item.answer,
+              date: item.date,
+            })),
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          savedCount += data.count || 0;
+        }
+      }
+
+      if (savedCount > 0) {
+        toast.success(`取説に${savedCount}件追加しました`);
+      } else {
+        toast.info("保存できる項目がありませんでした（話者が設定されていません）");
+      }
+
+      setShowManualDialog(false);
+      setManualItems([]);
+      await clearPendingManualItems();
+    } catch (error) {
+      console.error("Error saving manual items:", error);
+      toast.error("取説への追加に失敗しました");
+    } finally {
+      setIsSavingManualItems(false);
+    }
+  };
+
+  // 取説ダイアログを閉じた時の処理
+  const handleManualDialogClose = async (open: boolean) => {
+    setShowManualDialog(open);
+    if (!open && hasProcessedPendingManualItems) {
+      await clearPendingManualItems();
+    }
+  };
+
+  // 取説項目を削除
+  const deleteManualItem = (index: number) => {
+    setManualItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // カテゴリーラベル
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      basic: "基本情報",
+      personality: "性格・気持ち",
+      hobbies: "趣味・好み",
+      communication: "コミュニケーション",
+      lifestyle: "生活習慣",
+      other: "その他",
+    };
+    return labels[category] || category;
   };
 
   const updateBondNoteItem = (index: number, field: string, value: any) => {
@@ -234,6 +426,25 @@ export default function SummaryPage() {
     return null;
   }
 
+  // サマリー生成中の場合、全画面ローディング表示
+  if (talk.summary_status === "pending" || talk.summary_status === "generating") {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header t={t} tt={tt} tc={tc} />
+        <main className="container mx-auto px-4 py-8 max-w-3xl">
+          <div className="flex flex-col items-center justify-center py-24">
+            <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-6" />
+            <h2 className="text-xl font-semibold mb-2">サマリーを作成中...</h2>
+            <p className="text-muted-foreground text-center">
+              会話内容を分析してサマリーを生成しています。<br />
+              しばらくお待ちください。
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header t={t} tt={tt} tc={tc} />
@@ -272,16 +483,6 @@ export default function SummaryPage() {
                 </svg>
                 {t("summary")}
               </CardTitle>
-              {talk.summary_status === "generated" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={regenerateSummary}
-                  disabled={isGenerating}
-                >
-                  {isGenerating ? t("regenerating") : t("regenerate")}
-                </Button>
-              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -308,57 +509,6 @@ export default function SummaryPage() {
               <p className="whitespace-pre-wrap">{talk.summary}</p>
             ) : (
               <p className="text-muted-foreground">{t("noContent")}</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 約束リスト */}
-        <Card className="mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-              {t("promises")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {talk.promises && talk.promises.length > 0 ? (
-              <ul className="space-y-3">
-                {talk.promises.map((promise, index) => (
-                  <li
-                    key={index}
-                    className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg"
-                  >
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <p>{promise.content}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {getSpeakerName(promise.speaker)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted-foreground">
-                {talk.summary_status === "pending"
-                  ? t("generatingMessage")
-                  : t("noPromises")}
-              </p>
             )}
           </CardContent>
         </Card>
@@ -435,7 +585,7 @@ export default function SummaryPage() {
       />
 
       {/* 絆ノート追加確認ダイアログ */}
-      <Dialog open={showBondNoteDialog} onOpenChange={setShowBondNoteDialog}>
+      <Dialog open={showBondNoteDialog} onOpenChange={handleBondNoteDialogClose}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>絆ノートに追加しますか？</DialogTitle>
@@ -667,6 +817,116 @@ export default function SummaryPage() {
               disabled={isSavingBondNotes || bondNoteItems.length === 0}
             >
               {isSavingBondNotes ? "追加中..." : `絆ノートに追加 (${bondNoteItems.length}件)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 取説追加確認ダイアログ */}
+      <Dialog open={showManualDialog} onOpenChange={handleManualDialogClose}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>取説に追加しますか？</DialogTitle>
+            <DialogDescription>
+              会話から以下の個人情報を抽出しました。取説に追加できます。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {manualItems.map((item, index) => (
+              <Card key={index}>
+                <CardContent className="pt-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-primary">
+                          {getCategoryLabel(item.category)}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          item.speakerTag === 1
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-pink-100 text-pink-700"
+                        }`}>
+                          {item.speakerTag === 1
+                            ? (talk?.speaker1_name || "話者1")
+                            : (talk?.speaker2_name || "話者2")}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => deleteManualItem(index)}
+                      >
+                        削除
+                      </Button>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{item.question}</p>
+                      <p className="text-sm text-muted-foreground">{item.answer}</p>
+                      {item.date && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          📅 {item.date}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {manualItems.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">
+                追加する項目がありません
+              </p>
+            )}
+
+            {/* パートナー未連携時のプロモーション */}
+            {!talk?.speaker2_user_id && manualItems.some(item => item.speakerTag === 2) && (
+              <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-primary/10 to-purple-500/10 p-4">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                <div className="relative flex items-start gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      パートナーと連携しませんか？
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      連携すると、相手の取説も追加できるようになります
+                    </p>
+                    <Link href="/partners" className="inline-block mt-2">
+                      <Button size="sm" variant="outline" className="h-7 text-xs bg-background/50 hover:bg-background">
+                        連携する
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1">
+                          <path d="m9 18 6-6-6-6"/>
+                        </svg>
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => handleManualDialogClose(false)}
+              disabled={isSavingManualItems}
+            >
+              キャンセル
+            </Button>
+            <Button
+              onClick={saveManualItems}
+              disabled={isSavingManualItems || manualItems.length === 0}
+            >
+              {isSavingManualItems ? "追加中..." : `取説に追加 (${manualItems.length}件)`}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -7,8 +7,9 @@ import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
 import { toast } from "sonner";
+import { TalksOnboarding } from "@/components/onboarding/TalksOnboarding";
 
 interface Talk {
   id: string;
@@ -17,6 +18,8 @@ interface Talk {
   duration_minutes: number | null;
   status: string;
   summary: string | null;
+  summary_status: string | null;
+  diarization_status: string | null;
   speaker1_name: string | null;
   speaker2_name: string | null;
 }
@@ -32,6 +35,21 @@ export default function TalksPage() {
   useEffect(() => {
     fetchTalks();
   }, []);
+
+  // 処理中または確認待ちの会話がある場合、ポーリング
+  useEffect(() => {
+    const hasProcessingTalks = talks.some(
+      (talk) => talk.status === "completed" &&
+        (talk.diarization_status === "pending" || talk.diarization_status === "processing" ||
+         talk.summary_status === "pending" || talk.summary_status === "generating")
+    );
+
+    // 処理中の会話がある場合、3秒ごとにポーリング（より早いフィードバック）
+    if (hasProcessingTalks) {
+      const interval = setInterval(fetchTalks, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [talks]);
 
   const fetchTalks = async () => {
     try {
@@ -85,34 +103,103 @@ export default function TalksPage() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-            <span className="w-2 h-2 mr-1 bg-red-500 rounded-full animate-pulse" />
-            {t("recordingStatus")}
-          </span>
-        );
-      case "paused":
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-            {t("paused")}
-          </span>
-        );
-      case "completed":
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-            {t("completed")}
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-            {status}
-          </span>
-        );
+  const getStatusBadge = (talk: Talk) => {
+    const { status, summary_status, diarization_status } = talk;
+
+    // 録音待機中（新規作成直後、まだ録音開始していない）
+    if (status === "ready") {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+          <span className="w-2 h-2 mr-1 bg-gray-400 rounded-full" />
+          待機中
+        </span>
+      );
     }
+
+    // 録音中
+    if (status === "active") {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          <span className="w-2 h-2 mr-1 bg-red-500 rounded-full animate-pulse" />
+          {t("recordingStatus")}
+        </span>
+      );
+    }
+
+    // 一時停止中
+    if (status === "paused") {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+          {t("paused")}
+        </span>
+      );
+    }
+
+    // 話者識別処理中
+    if (status === "completed" &&
+        (diarization_status === "pending" || diarization_status === "processing")) {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+          <span className="w-3 h-3 mr-1 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          話者識別中...
+        </span>
+      );
+    }
+
+    // サマリー作成中
+    if (status === "completed" &&
+        (summary_status === "pending" || summary_status === "generating")) {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+          <span className="w-3 h-3 mr-1 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          サマリー作成中...
+        </span>
+      );
+    }
+
+    // 話者識別確認待ち
+    if (status === "completed" && summary_status === "waiting_confirmation") {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          確認待ち
+        </span>
+      );
+    }
+
+    // 処理失敗
+    if (status === "completed" && (diarization_status === "failed" || summary_status === "failed")) {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          処理失敗
+        </span>
+      );
+    }
+
+    // 完了済み
+    if (status === "completed") {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+          {t("completed")}
+        </span>
+      );
+    }
+
+    // その他
+    return (
+      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+        {status}
+      </span>
+    );
   };
 
   if (loading) {
@@ -131,6 +218,7 @@ export default function TalksPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <TalksOnboarding />
       <Header onSignOut={handleSignOut} t={t} tc={tc} />
 
       <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
@@ -141,7 +229,13 @@ export default function TalksPage() {
               {t("pageDescription")}
             </p>
           </div>
-          <Button onClick={startNewTalk} disabled={creating} size="lg" className="w-full md:w-auto">
+          <Button
+            onClick={startNewTalk}
+            disabled={creating}
+            size="lg"
+            className="w-full md:w-auto"
+            data-onboarding="start-recording"
+          >
             {creating ? tc("loading") : t("startNewTalk")}
           </Button>
         </div>
@@ -167,7 +261,7 @@ export default function TalksPage() {
                       <CardTitle className="text-lg">
                         {formatDate(talk.started_at)}
                       </CardTitle>
-                      {getStatusBadge(talk.status)}
+                      {getStatusBadge(talk)}
                     </div>
                     <CardDescription>
                       {talk.speaker1_name} & {talk.speaker2_name}
@@ -199,24 +293,15 @@ function Header({ onSignOut, t, tc }: { onSignOut: () => void; t: ReturnType<typ
           <span className="text-xl md:text-2xl font-bold text-primary">{tc("appName")}</span>
         </Link>
         <nav className="flex items-center gap-2 md:gap-4">
-          <LanguageSwitcher />
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="px-2 md:px-3">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="md:hidden">
-                <path d="m15 18-6-6 6-6"/>
-              </svg>
-              <span className="hidden md:inline">{t("backToDashboard")}</span>
-            </Button>
+          {/* PC: テキストリンク */}
+          <Link href="/dashboard" className="hidden md:block">
+            <Button variant="ghost" size="sm">{t("backToDashboard")}</Button>
           </Link>
-          <Link href="/settings">
-            <Button variant="ghost" size="sm" className="px-2 md:px-3">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="md:hidden">
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              <span className="hidden md:inline">{tc("settings")}</span>
-            </Button>
+          <Link href="/settings" className="hidden md:block">
+            <Button variant="ghost" size="sm">{tc("settings")}</Button>
           </Link>
+          {/* モバイル: ハンバーガーメニュー */}
+          <MobileNavMenu />
         </nav>
       </div>
     </header>

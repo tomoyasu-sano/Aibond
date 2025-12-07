@@ -23,26 +23,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { partnershipId, talkId, items } = body;
 
-    if (!partnershipId || !items || !Array.isArray(items)) {
+    if (!items || !Array.isArray(items)) {
       return NextResponse.json(
         { error: "Invalid request body" },
         { status: 400 }
       );
     }
 
-    // パートナーシップのアクセス権限チェック
-    const { data: partnership } = await supabase
-      .from("partnerships")
-      .select("id, user1_id, user2_id")
-      .eq("id", partnershipId)
-      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-      .single();
+    // パートナーシップがある場合はアクセス権限チェック
+    let validPartnershipId: string | null = null;
+    if (partnershipId) {
+      const { data: partnership } = await supabase
+        .from("partnerships")
+        .select("id, user1_id, user2_id")
+        .eq("id", partnershipId)
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        .single();
 
-    if (!partnership) {
-      return NextResponse.json(
-        { error: "Partnership not found" },
-        { status: 404 }
-      );
+      if (!partnership) {
+        return NextResponse.json(
+          { error: "Partnership not found" },
+          { status: 404 }
+        );
+      }
+      validPartnershipId = partnership.id;
     }
 
     let createdTopicsCount = 0;
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest) {
         const { data: newTopic, error: topicError } = await supabase
           .from("kizuna_topics")
           .insert({
-            partnership_id: partnershipId,
+            partnership_id: validPartnershipId,
             title: item.topicTitle,
             status: "active",
             created_by: user.id,

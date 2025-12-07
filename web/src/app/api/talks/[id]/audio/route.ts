@@ -1,10 +1,11 @@
 /**
  * Talk Audio API
  *
- * POST /api/talks/[id]/audio - 音声ファイルをアップロード
+ * POST /api/talks/[id]/audio - 音声ファイルをGCSにアップロード
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { uploadAudioToGCS, getAudioGcsUri } from "@/lib/gcs/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -29,7 +30,8 @@ export async function POST(
       id,
       status,
       duration_minutes,
-      partnership:partnerships!inner(
+      owner_user_id,
+      partnership:partnerships!left(
         id,
         user1_id,
         user2_id
@@ -42,10 +44,13 @@ export async function POST(
     return NextResponse.json({ error: "Talk not found" }, { status: 404 });
   }
 
-  // アクセス権チェック
+  // アクセス権チェック（owner または パートナーシップのメンバー）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const partnership = (talk.partnership as any)?.[0] || talk.partnership;
-  if (!partnership || (partnership.user1_id !== user.id && partnership.user2_id !== user.id)) {
+  const isOwner = talk.owner_user_id === user.id;
+  const isPartnershipMember = partnership && (partnership.user1_id === user.id || partnership.user2_id === user.id);
+
+  if (!isOwner && !isPartnershipMember) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -64,24 +69,12 @@ export async function POST(
       return NextResponse.json({ error: "File too large" }, { status: 400 });
     }
 
-    // ファイルパス生成
-    const filePath = `${talkId}.webm`;
+    // FileをBufferに変換
+    const arrayBuffer = await audioFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Supabase Storageにアップロード
-    const { error: uploadError } = await supabase.storage
-      .from("audio-files")
-      .upload(filePath, audioFile, {
-        contentType: "audio/webm",
-        upsert: true, // 既存ファイルがあれば上書き
-      });
-
-    if (uploadError) {
-      console.error("[Audio Upload] Storage error:", uploadError);
-      return NextResponse.json(
-        { error: "Failed to upload audio" },
-        { status: 500 }
-      );
-    }
+    // GCSにアップロード
+    const gcsUri = await uploadAudioToGCS(talkId, buffer, audioFile.type || "audio/webm");
 
     // audio_filesテーブルに保存（既存レコードがあれば更新）
     const { error: dbError } = await supabase
@@ -89,7 +82,7 @@ export async function POST(
       .upsert(
         {
           talk_id: talkId,
-          file_path: filePath,
+          file_path: gcsUri, // GCS URIを保存
           file_size: audioFile.size,
           duration_seconds: durationSeconds ? parseInt(durationSeconds, 10) : null,
           format: "webm",
@@ -101,18 +94,17 @@ export async function POST(
 
     if (dbError) {
       console.error("[Audio Upload] DB error:", dbError);
-      // ストレージにはアップロード済みなのでエラーを返すが、データは残る
       return NextResponse.json(
         { error: "Failed to save audio metadata" },
         { status: 500 }
       );
     }
 
-    console.log("[Audio Upload] Success:", filePath, audioFile.size, "bytes");
+    console.log("[Audio Upload] Success:", gcsUri, audioFile.size, "bytes");
 
     return NextResponse.json({
       success: true,
-      filePath,
+      gcsUri,
       fileSize: audioFile.size,
     });
   } catch (error) {

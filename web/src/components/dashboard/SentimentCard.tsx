@@ -25,11 +25,7 @@ interface SentimentData {
   overallComment?: string;
 }
 
-interface SentimentCardProps {
-  hasPartnership: boolean;
-}
-
-export function SentimentCard({ hasPartnership }: SentimentCardProps) {
+export function SentimentCard() {
   const t = useTranslations("analytics");
   const [sentiments, setSentiments] = useState<SentimentData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,19 +34,13 @@ export function SentimentCard({ hasPartnership }: SentimentCardProps) {
   const [latestComment, setLatestComment] = useState<string>("");
 
   useEffect(() => {
-    if (!hasPartnership) {
-      setLoading(false);
-      return;
-    }
-
     const fetchSentiments = async () => {
       try {
-        const res = await fetch("/api/sentiments?period=90&limit=10");
+        // status=completed でサーバーサイドフィルター
+        const res = await fetch("/api/sentiments?period=90&limit=10&status=completed");
         if (res.ok) {
           const data = await res.json();
-          const completed = (data.sentiments || [])
-            .filter((s: { status: string }) => s.status === "completed")
-            .slice(0, 5);
+          const completed = (data.sentiments || []).slice(0, 5);
 
           setSentiments(completed);
 
@@ -70,7 +60,7 @@ export function SentimentCard({ hasPartnership }: SentimentCardProps) {
     };
 
     fetchSentiments();
-  }, [hasPartnership]);
+  }, []);
 
   // ミニチャート用のデータを作成（古い順に並べる）
   const chartData = [...sentiments]
@@ -114,25 +104,12 @@ export function SentimentCard({ hasPartnership }: SentimentCardProps) {
           {t("dashboardCardTitle")}
         </CardTitle>
         <CardDescription>
-          {hasPartnership
-            ? t("pageDescription")
-            : "パートナーとの連携が必要です"}
+          {t("pageDescription")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
           <div className="h-24 animate-pulse rounded bg-muted" />
-        ) : !hasPartnership ? (
-          <div className="text-center py-4">
-            <p className="text-sm text-muted-foreground mb-3">
-              パートナーと連携すると、話し合いの分析が表示されます
-            </p>
-            <Link href="/partners">
-              <Button variant="outline" size="sm">
-                パートナーを招待
-              </Button>
-            </Link>
-          </div>
         ) : sentiments.length === 0 ? (
           <div className="text-center py-4">
             <p className="text-sm text-muted-foreground mb-3">

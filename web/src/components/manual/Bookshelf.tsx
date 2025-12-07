@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Book } from "@/components/manual/Book";
 import { ManualItemModal } from "@/components/manual/ManualItemModal";
 import { MANUAL_CATEGORIES } from "@/lib/manual/config";
-import { getCurrentLevel, getItemsToNextLevel } from "@/lib/manual/config";
+import { getCurrentRank, getItemsToNextRank, calculateLevel } from "@/lib/manual/config";
 import type { ManualItem, ManualCategory } from "@/types/manual";
 import { Plus } from "lucide-react";
 
@@ -58,13 +58,14 @@ export function Bookshelf({
     return grouped;
   }, [items]);
 
-  // レベル計算
-  const currentLevel = getCurrentLevel(items.length);
-  const itemsToNext = getItemsToNextLevel(items.length);
+  // レベル・ランク計算
+  const currentRank = getCurrentRank(items.length);
+  const level = calculateLevel(items.length);
+  const itemsToNextRank = getItemsToNextRank(items.length);
 
-  // 進捗率の計算
-  const progressPercent = itemsToNext !== null
-    ? Math.min(100, ((currentLevel.maxItems - itemsToNext) / (currentLevel.maxItems - currentLevel.minItems + 1)) * 100)
+  // 進捗率の計算（次のランクまでの進捗）
+  const progressPercent = itemsToNextRank !== null
+    ? Math.min(100, ((items.length - currentRank.minItems) / (currentRank.maxItems - currentRank.minItems + 1)) * 100)
     : 100;
 
   const handleEdit = (item: ManualItem) => {
@@ -91,10 +92,13 @@ export function Bookshelf({
       <div className="space-y-3">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">{title}</h2>
 
-        {/* 柔らかい進捗バー */}
+        {/* 進捗バー（モダンなデザイン） */}
         <div className="flex items-center gap-3 text-sm">
           <span className="font-medium text-slate-700 dark:text-slate-300">
-            {currentLevel.emoji} Lv.{currentLevel.level}
+            Lv.{level}
+          </span>
+          <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
+            {currentRank.title}
           </span>
           <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden max-w-xs shadow-inner">
             <div
@@ -103,8 +107,8 @@ export function Bookshelf({
             />
           </div>
           <span className="text-xs text-slate-600 dark:text-slate-400">
-            {items.length} {t("items")}
-            {itemsToNext !== null && ` • あと${itemsToNext}冊`}
+            {items.length}項目
+            {itemsToNextRank !== null && ` / 次ランクまで${itemsToNextRank}`}
           </span>
         </div>
       </div>
@@ -114,7 +118,9 @@ export function Bookshelf({
         {items.length === 0 ? (
           // 空の状態
           <div className="flex flex-col items-center justify-center py-16 space-y-4">
-            <div className="text-6xl mb-2">📚</div>
+            <div className="w-16 h-16 mb-2 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
+              <Plus size={32} className="text-slate-400" />
+            </div>
             <div className="text-xl font-medium text-slate-800 dark:text-slate-200">{t("emptyState")}</div>
             <div className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md">
               {t("emptyDescription")}

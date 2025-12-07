@@ -19,27 +19,23 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // ユーザーのパートナーシップを取得
+  // ユーザーのパートナーシップを取得 (history_deleted_at が null のもののみ)
   const { data: partnership } = await supabase
     .from("partnerships")
     .select("id")
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
     .eq("status", "active")
+    .is("history_deleted_at", null)
     .single();
-
-  if (!partnership) {
-    return NextResponse.json({ items: [], count: 0 });
-  }
 
   const today = new Date();
   const sevenDaysLater = new Date(today);
   sevenDaysLater.setDate(today.getDate() + 7);
 
-  const todayStr = today.toISOString().split("T")[0];
   const sevenDaysLaterStr = sevenDaysLater.toISOString().split("T")[0];
 
-  // 見直し時期が7日以内のアクティブなアイテムを取得
-  const { data: items, error } = await supabase
+  // 見直し時期が7日以内のアクティブなアイテムを取得（論理削除されたトピックは除外）
+  let query = supabase
     .from("kizuna_items")
     .select(
       `
@@ -51,15 +47,26 @@ export async function GET() {
       topic:kizuna_topics!inner(
         id,
         title,
-        partnership_id
+        partnership_id,
+        created_by,
+        deleted_at
       )
     `
     )
     .eq("status", "active")
-    .eq("kizuna_topics.partnership_id", partnership.id)
     .not("review_date", "is", null)
     .lte("review_date", sevenDaysLaterStr)
+    .is("kizuna_topics.deleted_at", null)
     .order("review_date", { ascending: true });
+
+  // パートナーありの場合はpartnership_id、なしの場合はcreated_byでフィルタ
+  if (partnership) {
+    query = query.eq("kizuna_topics.partnership_id", partnership.id);
+  } else {
+    query = query.is("kizuna_topics.partnership_id", null).eq("kizuna_topics.created_by", user.id);
+  }
+
+  const { data: items, error } = await query;
 
   if (error) {
     console.error("[Kizuna Review Alerts] Error fetching:", error);

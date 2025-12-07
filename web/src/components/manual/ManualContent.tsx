@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookCover } from "@/components/manual/BookCover";
 import { BookContent } from "@/components/manual/BookContent";
+import { ManualOnboarding } from "@/components/onboarding/ManualOnboarding";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
 import type { ManualItem } from "@/types/manual";
 
 interface Partner {
@@ -36,6 +38,46 @@ export function ManualContent({
   const [openBook, setOpenBook] = useState<"my" | "partner" | null>(null);
   const [myCoverImageUrl, setMyCoverImageUrl] = useState<string | undefined>();
   const [partnerCoverImageUrl, setPartnerCoverImageUrl] = useState<string | undefined>();
+  const [lastDeleteCheck, setLastDeleteCheck] = useState<string | null>(null);
+
+  // 履歴削除を検知してカバー画像をリセット
+  useEffect(() => {
+    const checkHistoryDeleted = () => {
+      const deleted = localStorage.getItem("aibond_history_deleted");
+      if (deleted && deleted !== lastDeleteCheck) {
+        // 履歴が削除された - カバー画像をリセット
+        setMyCoverImageUrl(undefined);
+        setPartnerCoverImageUrl(undefined);
+        setLastDeleteCheck(deleted);
+        // フラグをクリア
+        localStorage.removeItem("aibond_history_deleted");
+      }
+    };
+
+    // 初回チェック
+    checkHistoryDeleted();
+
+    // カスタムイベントをリッスン
+    const handleHistoryDeleted = () => {
+      setMyCoverImageUrl(undefined);
+      setPartnerCoverImageUrl(undefined);
+    };
+    window.addEventListener("aibond:history-deleted", handleHistoryDeleted);
+
+    // storageイベントをリッスン（他タブからの変更を検知）
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "aibond_history_deleted") {
+        setMyCoverImageUrl(undefined);
+        setPartnerCoverImageUrl(undefined);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("aibond:history-deleted", handleHistoryDeleted);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [lastDeleteCheck]);
 
   // 自分の取説を取得
   useEffect(() => {
@@ -142,15 +184,16 @@ export function ManualContent({
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-14 md:h-16 items-center justify-between px-4">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <span className="text-xl font-bold text-primary">Aibond</span>
+            </Link>
+            <h1 className="text-base md:text-lg font-semibold">{t("pageTitle")}</h1>
             <div className="flex items-center gap-2">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm">
-                  ← {t("backToDashboard")}
-                </Button>
+              <Link href="/dashboard" className="hidden md:block">
+                <Button variant="ghost" size="sm">{t("backToDashboard")}</Button>
               </Link>
+              <MobileNavMenu />
             </div>
-            <h1 className="text-xl md:text-2xl font-bold">{t("pageTitle")}</h1>
-            <div className="w-24" />
           </div>
         </header>
         <main className="w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
@@ -163,29 +206,30 @@ export function ManualContent({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      <ManualOnboarding />
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-14 md:h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="sm">
-                ← {t("backToDashboard")}
-              </Button>
-            </Link>
-          </div>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <span className="text-xl font-bold text-primary">Aibond</span>
+          </Link>
           <h1 className="text-xl md:text-2xl font-bold">{t("pageTitle")}</h1>
-          <div className="w-24" />
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard" className="hidden md:block">
+              <Button variant="ghost" size="sm">{t("backToDashboard")}</Button>
+            </Link>
+            <MobileNavMenu />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="w-full max-w-7xl mx-auto px-4 py-6 md:py-8">
         {/* PC: 左右2カラム、スマホ: タブ切り替え */}
-        <div className="hidden lg:grid lg:grid-cols-2 lg:gap-12 lg:place-items-center lg:min-h-[600px]">
+        <div className="hidden lg:flex lg:justify-center lg:items-start lg:gap-24 xl:gap-32 py-8">
           {/* 左: 自分の本 */}
-          <div className="flex flex-col items-center">
-            <p className="text-sm text-muted-foreground mb-4">{t("myManual")}</p>
+          <div className="flex flex-col items-center" data-onboarding="my-book">
             <BookCover
               title={userName || "自分"}
               itemCount={myItems.length}
@@ -200,9 +244,6 @@ export function ManualContent({
           {/* 右: パートナーの本 */}
           {partner && (
             <div className="flex flex-col items-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                {t("partnerManual", { name: partner.name })}
-              </p>
               <BookCover
                 title={partner.name}
                 itemCount={partnerItems.length}
@@ -217,18 +258,20 @@ export function ManualContent({
         </div>
 
         {/* スマホ: タブ切り替え */}
-        <div className="lg:hidden">
+        <div className="lg:hidden pb-12">
           <Tabs defaultValue="my" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="my">👤 {t("myManual")}</TabsTrigger>
+              <TabsTrigger value="my" className="min-w-0 px-2">
+                <span className="truncate block">{userName || "自分"}</span>
+              </TabsTrigger>
               {partner && (
-                <TabsTrigger value="partner">
-                  💕 {partner.name}
+                <TabsTrigger value="partner" className="min-w-0 px-2">
+                  <span className="truncate block">{partner.name}</span>
                 </TabsTrigger>
               )}
             </TabsList>
 
-            <TabsContent value="my" className="flex justify-center mt-8">
+            <TabsContent value="my" className="flex justify-center mt-8 data-[state=inactive]:hidden" forceMount>
               <BookCover
                 title={userName || "自分"}
                 itemCount={myItems.length}
@@ -241,7 +284,7 @@ export function ManualContent({
             </TabsContent>
 
             {partner && (
-              <TabsContent value="partner" className="flex justify-center mt-8">
+              <TabsContent value="partner" className="flex justify-center mt-8 data-[state=inactive]:hidden" forceMount>
                 <BookCover
                   title={partner.name}
                   itemCount={partnerItems.length}

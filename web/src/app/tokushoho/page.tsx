@@ -1,61 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { createClient } from "@/lib/supabase/client";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
 
 export default function TokushohoPage() {
-    const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
     const t = useTranslations("tokushoho");
     const tc = useTranslations("common");
 
-    useEffect(() => {
-        const checkAuth = async () => {
-            const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
-            setIsLoggedIn(!!user);
-        };
-        checkAuth();
-    }, []);
-
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background overflow-x-hidden">
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="container mx-auto flex h-16 items-center justify-between px-4">
-                    <Link href="/" className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
+                <div className="container mx-auto flex h-14 items-center justify-between px-4">
+                    <Link href="/dashboard" className="flex items-center gap-2">
+                        <span className="text-xl font-bold text-primary">{tc("appName")}</span>
                     </Link>
-                    <nav className="flex items-center gap-4">
-                        <LanguageSwitcher />
-                        {isLoggedIn === null ? null : isLoggedIn ? (
-                            <>
-                                <Link href="/dashboard">
-                                    <Button variant="ghost" size="sm">
-                                        {t("dashboard")}
-                                    </Button>
-                                </Link>
-                                <Link href="/settings">
-                                    <Button variant="ghost" size="sm">
-                                        {t("settings")}
-                                    </Button>
-                                </Link>
-                            </>
-                        ) : (
-                            <>
-                                <Link href="/login">
-                                    <Button variant="ghost" size="sm">
-                                        {t("login")}
-                                    </Button>
-                                </Link>
-                                <Link href="/signup">
-                                    <Button size="sm">{t("getStarted")}</Button>
-                                </Link>
-                            </>
-                        )}
-                    </nav>
+                    <MobileNavMenu />
                 </div>
             </header>
 
@@ -67,7 +28,8 @@ export default function TokushohoPage() {
                         {t("lastUpdated")}
                     </p>
 
-                    <table className="w-full border-collapse">
+                    <div className="overflow-x-auto">
+                    <table className="w-full border-collapse min-w-[500px]">
                         <tbody className="text-muted-foreground">
                             <tr className="border-b">
                                 <th className="py-3 px-4 text-left font-semibold bg-muted/30 w-1/3">{t("seller")}</th>
@@ -121,23 +83,18 @@ export default function TokushohoPage() {
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
-                <div className="mt-12 pt-8 border-t flex gap-4">
-                    {isLoggedIn ? (
-                        <Link href="/settings">
-                            <Button variant="outline">{t("backToSettings")}</Button>
-                        </Link>
-                    ) : (
-                        <Link href="/signup">
-                            <Button>{t("backToSignup")}</Button>
-                        </Link>
-                    )}
+                <div className="mt-12 pt-8 border-t flex flex-col sm:flex-row gap-2 sm:gap-4">
+                    <Link href="/settings">
+                        <Button variant="outline" className="w-full sm:w-auto">{t("backToSettings")}</Button>
+                    </Link>
                     <Link href="/terms">
-                        <Button variant="ghost">{t("termsLink")}</Button>
+                        <Button variant="ghost" className="w-full sm:w-auto">{t("termsLink")}</Button>
                     </Link>
                     <Link href="/privacy">
-                        <Button variant="ghost">{t("privacyLink")}</Button>
+                        <Button variant="ghost" className="w-full sm:w-auto">{t("privacyLink")}</Button>
                     </Link>
                 </div>
             </main>

@@ -293,6 +293,214 @@ ${learningContext}
 }
 
 /**
+ * 会話から抽出した取説項目（話者情報付き）
+ */
+export interface ExtractedManualItem {
+  speakerTag: number; // 1 or 2 - 誰についての情報か
+  category: string;
+  question: string;
+  answer: string;
+  date?: string;
+}
+
+/**
+ * 統合サマリー生成結果の型（サマリー＋絆ノート＋取説）
+ */
+export interface IntegratedSummaryResult {
+  summary: string;
+  nextTopics: string[];
+  bondNoteItems: BondNoteItem[];
+  manualItems: ExtractedManualItem[];
+}
+
+/**
+ * 統合サマリー生成（サマリー＋絆ノート候補を1回のリクエストで取得）
+ */
+export async function generateIntegratedSummary(
+  messages: Array<{
+    speaker_tag: number;
+    original_text: string;
+    speaker_name?: string;
+  }>,
+  existingTopics: Array<{
+    id: string;
+    title: string;
+  }> = [],
+  recentItems?: Array<{
+    topic_title: string;
+    type: string;
+    assignee: string | null;
+    review_period: string | null;
+    content: string;
+  }>,
+  existingManualItems?: Array<{
+    question: string;
+    answer: string;
+    category: string;
+  }>
+): Promise<IntegratedSummaryResult> {
+  if (messages.length === 0) {
+    return {
+      summary: "会話内容がありません。",
+      nextTopics: [],
+      bondNoteItems: [],
+      manualItems: [],
+    };
+  }
+
+  const client = getClient();
+  const model = client.getGenerativeModel({ model: "gemini-3-pro-preview" });
+
+  // 会話内容をテキストに変換
+  const conversationText = messages
+    .map((m) => {
+      const speaker = m.speaker_name || `話者${m.speaker_tag}`;
+      return `${speaker}: ${m.original_text}`;
+    })
+    .join("\n");
+
+  // 既存トピックのリスト
+  const topicsListText = existingTopics.length > 0
+    ? existingTopics.map(t => `- ID: ${t.id}, タイトル: ${t.title}`).join("\n")
+    : "なし（新規作成が必要です）";
+
+  // 既存の取説項目リスト
+  const existingManualItemsText = existingManualItems && existingManualItems.length > 0
+    ? existingManualItems.map(item => `- ${item.question}: ${item.answer}`).join("\n")
+    : "なし";
+
+  // 過去の項目からパターンを学習
+  const learningContext = recentItems && recentItems.length > 0
+    ? `
+過去の絆ノート項目（参考にしてパターンを学習してください）:
+${recentItems.slice(0, 20).map(item => `
+- テーマ: ${item.topic_title}
+  種類: ${item.type}
+  担当: ${item.assignee || '未指定'}
+  内容: ${item.content}
+`).join('\n')}
+`
+    : "";
+
+  const prompt = `あなたは、パートナーとの会話を整理するアシスタントです。以下の会話ログを分析し、必ず JSON「のみ」を返してください。前置き・説明・マークダウンコードブロックは禁止です。
+
+【入力フォーマット】
+- messages: 話者付きの発話一覧（時系列）
+  - speaker: "話者1" または "話者2"（または実名があればそのまま）
+  - text: 発話内容
+
+【既存の絆ノートテーマ】
+${topicsListText}
+
+【既存の取説項目】
+${existingManualItemsText}
+${learningContext}
+
+【出力フォーマット（JSONのみ）】
+{
+  "summary": "会話の詳細なサマリー（日本語）",
+  "nextTopics": ["次回話すこと1", "次回話すこと2"],
+  "bondNoteItems": [
+    {
+      "topicId": "既存テーマのIDまたはnull",
+      "topicTitle": "新規テーマならタイトル（例: 家事分担）",
+      "type": "promise | request | discussion",
+      "assignee": "self | partner | both",
+      "reviewDate": "YYYY-MM-DD または null",
+      "content": "項目の内容",
+      "feeling": "話者1の気持ち（任意）",
+      "partnerFeeling": "話者2の気持ち（任意）",
+      "memo": "メモ（任意）"
+    }
+  ],
+  "manualItems": [
+    {
+      "speakerTag": 1,
+      "category": "personality | hobbies | communication | lifestyle | basic | other",
+      "question": "項目名（5-15文字程度）",
+      "answer": "内容",
+      "date": "YYYY-MM-DD または null"
+    }
+  ]
+}
+
+【抽出ルール】
+- summary: 会話の内容を詳細に要約してください。
+  - 話し合われた全てのトピックを網羅する
+  - 各トピックについて、誰が何を言ったか、どのような結論になったかを含める
+  - 決定事項、約束、合意した内容を明記する
+  - 意見の相違があった場合はそれも記載する
+  - 感情的なやり取りや重要な発言も含める
+  - 行数の制限なし、内容を省略せず詳細に記述する
+
+- nextTopics: 途中の論点や次回話したいこと。なければ []。
+
+- bondNoteItems:
+  - promise: 決定・約束、request: 要望、discussion: 検討事項。
+  - assignee: 話者1が担当と言った→self、話者2→partner、二人で→both。
+  - reviewDate: 具体日付があればそれ、なければ null。
+  - **テーマの判定ルール**:
+    1. 抽出した内容が既存テーマのいずれかと意味的に類似している場合 → そのテーマの topicId を使用
+    2. 類似する既存テーマがない場合 → topicId=null、topicTitle に適切な新規タイトルを設定
+    3. 類似判定は「同じカテゴリの話題か」「同じ文脈か」で判断
+
+- manualItems: 会話から話者ごとの性格・好み・習慣などの個人情報を積極的に抽出する。
+  - speakerTag: 1（話者1についての情報）または 2（話者2についての情報）
+  - category の選び方:
+    - basic: 誕生日、年齢、血液型、出身地など
+    - personality: 性格、考え方、価値観など（例: 「几帳面」「心配性」）
+    - hobbies: 趣味、好きなもの、嫌いなもの（例: 「犬が好き」「料理が好き」）
+    - communication: コミュニケーションスタイル（例: 「直接言ってほしい」「LINEより電話派」）
+    - lifestyle: 生活習慣、ルーティン（例: 「朝型」「週末は寝坊する」）
+    - other: 上記に当てはまらない個人情報
+  - 抽出例:
+    - 「犬が好き」→ {speakerTag: 1, category: "hobbies", question: "好きな動物", answer: "犬が好き"}
+    - 「朝は苦手」→ {speakerTag: 2, category: "lifestyle", question: "朝の強さ", answer: "朝は苦手"}
+  - **重複チェック**: 既存の取説項目と同じ意味の情報は追加しない。新規情報のみ抽出。
+  - **重要**: 会話に個人的な好み・性格・習慣の情報があれば必ず抽出すること。なければ [] を返す。
+
+【会話ログ】
+${conversationText}`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    console.log("[Gemini] Integrated summary raw response:", text.substring(0, 500));
+
+    // JSONを抽出（マークダウンコードブロックを除去）
+    let jsonText = text.trim();
+    if (jsonText.startsWith("```json")) {
+      jsonText = jsonText.slice(7);
+    } else if (jsonText.startsWith("```")) {
+      jsonText = jsonText.slice(3);
+    }
+    if (jsonText.endsWith("```")) {
+      jsonText = jsonText.slice(0, -3);
+    }
+    jsonText = jsonText.trim();
+
+    const parsed = JSON.parse(jsonText);
+
+    return {
+      summary: parsed.summary || "要約を生成できませんでした。",
+      nextTopics: parsed.nextTopics || [],
+      bondNoteItems: parsed.bondNoteItems || [],
+      manualItems: parsed.manualItems || [],
+    };
+  } catch (error) {
+    console.error("[Gemini] Error generating integrated summary:", error);
+    return {
+      summary: "サマリーの生成中にエラーが発生しました。",
+      nextTopics: [],
+      bondNoteItems: [],
+      manualItems: [],
+    };
+  }
+}
+
+/**
  * 取説アイテムの型
  */
 export interface ManualItem {

@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useLocale } from "next-intl";
+import { Globe } from "lucide-react";
 import { locales, localeNames, type Locale } from "@/config/locales";
 import {
   Select,
@@ -11,7 +12,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function LanguageSwitcher() {
+// 短い言語コード表示用
+const localeShortNames: Record<Locale, string> = {
+  ja: "JA",
+  en: "EN",
+};
+
+interface LanguageSwitcherProps {
+  className?: string;
+}
+
+export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
   const locale = useLocale();
   const [isPending, startTransition] = useTransition();
 
@@ -25,17 +36,38 @@ export function LanguageSwitcher() {
   };
 
   return (
-    <Select value={locale} onValueChange={handleChange} disabled={isPending}>
-      <SelectTrigger className="w-[140px]">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {locales.map((loc) => (
-          <SelectItem key={loc} value={loc}>
-            {localeNames[loc as Locale]}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className={className}>
+      {/* PC: フル表示 */}
+      <div className="hidden md:block">
+        <Select value={locale} onValueChange={handleChange} disabled={isPending}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {locales.map((loc) => (
+              <SelectItem key={loc} value={loc}>
+                {localeNames[loc as Locale]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {/* スマホ: コンパクト表示 */}
+      <div className="block md:hidden">
+        <Select value={locale} onValueChange={handleChange} disabled={isPending}>
+          <SelectTrigger className="w-auto gap-1 px-2">
+            <Globe className="h-4 w-4" />
+            <span className="text-xs">{localeShortNames[locale as Locale]}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {locales.map((loc) => (
+              <SelectItem key={loc} value={loc}>
+                {localeNames[loc as Locale]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
   );
 }

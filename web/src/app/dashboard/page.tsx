@@ -5,10 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureCurrentPeriodUsage } from "@/lib/usage/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PLAN_LIMITS, type PlanType } from "@/types/database";
+import { MobileNavMenu } from "@/components/MobileNavMenu";
 import { SentimentCard } from "@/components/dashboard/SentimentCard";
 import { ManualCard } from "@/components/dashboard/ManualCard";
+import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -63,6 +64,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* オンボーディング */}
+      <DashboardOnboarding />
+
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-14 md:h-16 items-center justify-between px-4">
@@ -70,25 +74,19 @@ export default async function DashboardPage() {
             <span className="text-xl md:text-2xl font-bold text-primary">{tc("appName")}</span>
           </Link>
           <nav className="flex items-center gap-2 md:gap-4">
-            <LanguageSwitcher />
-            <Link href="/settings">
-              <Button variant="ghost" size="sm" className="px-2 md:px-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="md:hidden">
-                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <span className="hidden md:inline">{tc("settings")}</span>
-              </Button>
+            <Link href="/settings" className="hidden md:block">
+              <Button variant="ghost" size="sm">{tc("settings")}</Button>
             </Link>
             <span className="hidden md:inline text-sm text-muted-foreground">
               {profile?.display_name || user.email}
             </span>
+            <MobileNavMenu />
           </nav>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">
+      <main className="w-full max-w-6xl mx-auto px-4 py-6 pb-24 md:py-8 md:pb-8">
         <div className="mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl font-bold">ホーム</h1>
           <p className="mt-2 text-muted-foreground">
@@ -99,7 +97,7 @@ export default async function DashboardPage() {
         {/* Quick Actions */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* 1. 会話を始める */}
-          <Card>
+          <Card data-onboarding="start-conversation">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
@@ -136,87 +134,98 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {partnership ? (
-                <>
-                  {await (async () => {
-                    const today = new Date();
-                    const sevenDaysLater = new Date(today);
-                    sevenDaysLater.setDate(today.getDate() + 7);
-                    const sevenDaysLaterStr = sevenDaysLater.toISOString().split("T")[0];
+              {await (async () => {
+                // パートナーシップがある場合は見直し時期のアラートを表示
+                if (partnership) {
+                  const today = new Date();
+                  const sevenDaysLater = new Date(today);
+                  sevenDaysLater.setDate(today.getDate() + 7);
+                  const sevenDaysLaterStr = sevenDaysLater.toISOString().split("T")[0];
 
-                    const { count } = await supabase
-                      .from("kizuna_items")
-                      .select("id, topic:kizuna_topics!inner(partnership_id)", { count: "exact", head: true })
-                      .eq("status", "active")
-                      .eq("kizuna_topics.partnership_id", partnership.id)
-                      .not("review_date", "is", null)
-                      .lte("review_date", sevenDaysLaterStr);
+                  const { count } = await supabase
+                    .from("kizuna_items")
+                    .select("id, topic:kizuna_topics!inner(partnership_id)", { count: "exact", head: true })
+                    .eq("status", "active")
+                    .eq("kizuna_topics.partnership_id", partnership.id)
+                    .not("review_date", "is", null)
+                    .lte("review_date", sevenDaysLaterStr);
 
-                    const reviewDueCount = count || 0;
+                  const reviewDueCount = count || 0;
 
-                    if (reviewDueCount > 0) {
-                      return (
-                        <div className="mb-4 px-3 py-2 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-                          <div className="flex items-center gap-2 text-sm text-orange-800 dark:text-orange-200">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="12" cy="12" r="10"/>
-                              <path d="M12 6v6l4 2"/>
-                            </svg>
-                            <span className="font-medium">見直し時期が近い項目: {reviewDueCount}件</span>
-                          </div>
+                  if (reviewDueCount > 0) {
+                    return (
+                      <div className="mb-4 px-3 py-2 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-orange-800 dark:text-orange-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                          </svg>
+                          <span className="font-medium">見直し時期が近い項目: {reviewDueCount}件</span>
                         </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                  <Link href="/kizuna">
-                    <Button variant="outline" className="w-full">
-                      {t("openBondNote")}
-                    </Button>
-                  </Link>
-                </>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    パートナーと連携すると利用できます
-                  </p>
-                  <Link href="/partners">
-                    <Button variant="outline" size="sm">
-                      パートナーを招待
-                    </Button>
-                  </Link>
-                </div>
-              )}
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
+              <Link href="/kizuna">
+                <Button variant="outline" className="w-full">
+                  {t("openBondNote")}
+                </Button>
+              </Link>
             </CardContent>
           </Card>
 
-          {/* 3. AI相談 */}
-          <Card>
+          {/* 3. 取説 */}
+          <ManualCard userId={user.id} partnershipId={partnership?.id} />
+
+          {/* 4. AI相談 */}
+          <Card className={plan === "free" ? "relative overflow-hidden" : ""}>
+            {plan === "free" && (
+              <div className="absolute top-3 right-3 z-10">
+                <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  有料
+                </span>
+              </div>
+            )}
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={plan === "free" ? "text-muted-foreground" : "text-primary"}>
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                {t("aiConsultation")}
+                <span className={plan === "free" ? "text-muted-foreground" : ""}>{t("aiConsultation")}</span>
               </CardTitle>
               <CardDescription>
                 {t("aiConsultationDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/ai-chat">
-                <Button variant="outline" className="w-full">
-                  {t("consult")}
-                </Button>
-              </Link>
+              {plan === "free" ? (
+                <Link href="/plans">
+                  <Button variant="outline" className="w-full gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    {t("upgradeButtonText")}
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/ai-chat">
+                  <Button variant="outline" className="w-full">
+                    {t("consult")}
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
 
-          {/* 4. 話し合い分析 */}
-          <SentimentCard hasPartnership={!!partnership} />
-
-          {/* 5. 取説 */}
-          <ManualCard userId={user.id} partnershipId={partnership?.id} />
+          {/* 5. 話し合い分析 */}
+          <SentimentCard />
 
           {/* 6. パートナー連携 */}
           <Card>

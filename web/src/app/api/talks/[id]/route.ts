@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { generateTalkSummary } from "@/lib/gemini/client";
 import { updateUsageAndNotify } from "@/lib/usage/client";
 import { analyzeTalk, getTimeOfDay, type PreviousAnalysis } from "@/lib/sentiment";
@@ -31,22 +31,24 @@ export async function GET(
     return NextResponse.json({ error: "Talk not found" }, { status: 404 });
   }
 
-  // Verify access (owner or partnership member)
-  if (talk.owner_user_id !== user.id) {
-    if (talk.partnership_id) {
-      const { data: partnership } = await supabase
+  // アクセス権限チェック
+  // history_deleted_at が設定されていても、連携中ならアクセス可能
+  if (talk.partnership_id) {
+    // Verify access (partnership member)
+    if (talk.owner_user_id !== user.id) {
+      const { data: memberCheck } = await supabase
         .from("partnerships")
         .select("id")
         .eq("id", talk.partnership_id)
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
         .single();
 
-      if (!partnership) {
+      if (!memberCheck) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }
-    } else {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
+  } else if (talk.owner_user_id !== user.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
   // Get messages
@@ -91,6 +93,17 @@ export async function PATCH(
   let updateData: Record<string, unknown> = {};
 
   switch (action) {
+    case "start":
+      // 録音開始時にready→activeに変更
+      if (talk.status !== "ready") {
+        return NextResponse.json({ error: "Cannot start" }, { status: 400 });
+      }
+      updateData = {
+        status: "active",
+        started_at: new Date().toISOString(), // 実際の録音開始時刻に更新
+      };
+      break;
+
     case "pause":
       if (talk.status !== "active" || talk.is_paused) {
         return NextResponse.json({ error: "Cannot pause" }, { status: 400 });
@@ -131,6 +144,7 @@ export async function PATCH(
         duration_minutes: durationMinutes,
         is_paused: false,
         paused_at: null,
+        diarization_status: "pending",
         summary_status: "pending",
       };
 
@@ -139,9 +153,9 @@ export async function PATCH(
         console.error("[Talk End] Usage update failed:", err);
       });
 
-      // 話者識別を非同期で実行（完了後にサマリー生成）
-      triggerDiarizationAndSummary(id, talk, supabase).catch((err) => {
-        console.error("[Talk End] Diarization and summary failed:", err);
+      // 話者識別のみを非同期で実行（サマリー生成はユーザー確認後）
+      triggerDiarizationOnly(id, supabase).catch((err) => {
+        console.error("[Talk End] Diarization failed:", err);
       });
       break;
 
@@ -199,27 +213,132 @@ export async function DELETE(
   return NextResponse.json({ success: true });
 }
 
+// PUT - Update talk fields (e.g., clear pending_bond_notes)
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+
+  // Get current talk to verify ownership
+  const { data: talk, error: talkError } = await supabase
+    .from("talks")
+    .select("owner_user_id, partnership_id")
+    .eq("id", id)
+    .single();
+
+  if (talkError || !talk) {
+    return NextResponse.json({ error: "Talk not found" }, { status: 404 });
+  }
+
+  // Verify access (owner or partnership member)
+  if (talk.owner_user_id !== user.id) {
+    if (talk.partnership_id) {
+      const { data: partnership } = await supabase
+        .from("partnerships")
+        .select("id")
+        .eq("id", talk.partnership_id)
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        .single();
+
+      if (!partnership) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+    } else {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+  }
+
+  // Only allow updating specific fields
+  const allowedFields = ["pending_bond_notes", "pending_manual_items"];
+  const updateData: Record<string, unknown> = {};
+
+  for (const field of allowedFields) {
+    if (field in body) {
+      updateData[field] = body[field];
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  const { data: updatedTalk, error } = await supabase
+    .from("talks")
+    .update(updateData)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating talk:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ talk: updatedTalk });
+}
+
 /**
- * 話者識別を実行してからサマリー生成を実行
+ * 話者識別のみを実行（サマリー生成はユーザー確認後）
+ * 非同期処理のため、RLSバイパス用のadminClientを使用
  */
-async function triggerDiarizationAndSummary(
+async function triggerDiarizationOnly(
   talkId: string,
-  talk: Record<string, unknown>,
   supabase: Awaited<ReturnType<typeof createClient>>
 ) {
+  // 非同期処理でのRLSバイパス用にadminクライアントを使用
+  const adminClient = createAdminClient();
+
   try {
     console.log("[Diarization] Starting diarization for talk:", talkId);
+
+    // diarization_status を processing に更新
+    const { error: processingError } = await adminClient
+      .from("talks")
+      .update({ diarization_status: "processing" })
+      .eq("id", talkId);
+
+    if (processingError) {
+      console.error("[Diarization] Failed to set processing status:", processingError);
+    }
 
     // 話者識別を実行
     const diarizeResult = await executeDiarization(talkId, supabase);
     console.log("[Diarization] Completed:", diarizeResult);
 
-    // 話者識別完了後にサマリー生成
-    await generateSummaryAsync(talkId, talk, supabase);
+    // 話者識別完了を記録（サマリーはまだ生成しない）
+    const { error: updateError } = await adminClient
+      .from("talks")
+      .update({
+        diarization_status: "completed",
+        summary_status: "waiting_confirmation" // ユーザー確認待ち
+      })
+      .eq("id", talkId);
+
+    if (updateError) {
+      console.error("[Diarization] Failed to update status:", updateError);
+    } else {
+      console.log("[Diarization] Status updated to completed, waiting for user confirmation");
+    }
   } catch (error) {
     console.error("[Diarization] Unexpected error:", error);
-    // エラーの場合でもサマリー生成は続行（話者タグなしで）
-    await generateSummaryAsync(talkId, talk, supabase);
+    // エラーの場合は失敗ステータスを設定
+    await adminClient
+      .from("talks")
+      .update({
+        diarization_status: "failed",
+        summary_status: "waiting_confirmation" // エラーでも確認は可能
+      })
+      .eq("id", talkId);
   }
 }
 

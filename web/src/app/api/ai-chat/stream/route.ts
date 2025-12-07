@@ -14,6 +14,18 @@ interface ChatMessage {
   timestamp: string;
 }
 
+// プランチェック用ヘルパー関数
+async function checkPaidPlan(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<boolean> {
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("plan")
+    .eq("user_id", userId)
+    .single();
+
+  const plan = subscription?.plan || "free";
+  return plan !== "free"; // standard または premium は有料
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
 
@@ -27,6 +39,18 @@ export async function POST(request: NextRequest) {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // 有料プランチェック
+  const isPaidUser = await checkPaidPlan(supabase, user.id);
+  if (!isPaidUser) {
+    return new Response(
+      JSON.stringify({ error: "AI相談は有料プラン限定の機能です", code: "PLAN_REQUIRED" }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   try {
@@ -43,13 +67,14 @@ export async function POST(request: NextRequest) {
     let consultation;
     let chatHistory: ChatMessage[] = [];
 
-    // 既存の相談に追加 or 新規作成
+    // 既存の相談に追加 or 新規作成（削除済みを除外）
     if (consultation_id) {
       const { data, error } = await supabase
         .from("ai_consultations")
         .select("*")
         .eq("id", consultation_id)
         .eq("user_id", user.id)
+        .is("deleted_at", null)
         .single();
 
       if (error || !data) {
@@ -92,13 +117,14 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .eq("target_user_id", user.id);
 
-    // パートナーの取説を取得（パートナーがいる場合）
+    // パートナーの取説を取得（パートナーがいる場合、削除済みを除外）
     let partnerManualItems: Array<{ question: string; answer: string; category: string }> = [];
     const { data: partnership } = await supabase
       .from("partnerships")
       .select("user1_id, user2_id")
       .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
       .eq("status", "active")
+      .is("history_deleted_at", null)
       .single();
 
     if (partnership) {
