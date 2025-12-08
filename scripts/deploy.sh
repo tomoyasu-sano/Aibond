@@ -42,8 +42,7 @@ echo ""
 echo "🏗️  Building Docker image..."
 cd web
 gcloud builds submit \
-  --tag="$IMAGE_NAME:latest" \
-  --tag="$IMAGE_NAME:$(git rev-parse --short HEAD)" \
+  --config=cloudbuild.yaml \
   --project="$PROJECT_ID"
 cd ..
 
