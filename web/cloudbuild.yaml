@@ -5,22 +5,14 @@ steps:
   - '--network=cloudbuild'
   - '--no-cache'
   - '--build-arg'
-  - 'NEXT_PUBLIC_SUPABASE_URL=$$NEXT_PUBLIC_SUPABASE_URL'
+  - 'NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}'
   - '--build-arg'
-  - 'NEXT_PUBLIC_SUPABASE_ANON_KEY=$$NEXT_PUBLIC_SUPABASE_ANON_KEY'
+  - 'NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}'
   - '-t'
   - 'asia-northeast1-docker.pkg.dev/aibond-479715/aibond/web:latest'
   - '-t'
   - 'asia-northeast1-docker.pkg.dev/aibond-479715/aibond/web:${SHORT_SHA}'
   - '.'
-  secretEnv: ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY']
-
-availableSecrets:
-  secretManager:
-  - versionName: projects/aibond-479715/secrets/supabase-url/versions/latest
-    env: 'NEXT_PUBLIC_SUPABASE_URL'
-  - versionName: projects/aibond-479715/secrets/supabase-anon-key/versions/latest
-    env: 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
 
 images:
 - 'asia-northeast1-docker.pkg.dev/aibond-479715/aibond/web:latest'

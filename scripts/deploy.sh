@@ -42,9 +42,14 @@ echo ""
 echo "🏗️  Building Docker image..."
 cd web
 SHORT_SHA=$(git rev-parse --short HEAD)
+
+# Get secrets for build
+SUPABASE_URL=$(gcloud secrets versions access latest --secret="supabase-url" --project="$PROJECT_ID")
+SUPABASE_ANON_KEY=$(gcloud secrets versions access latest --secret="supabase-anon-key" --project="$PROJECT_ID")
+
 gcloud builds submit \
   --config=cloudbuild.yaml \
-  --substitutions=SHORT_SHA="$SHORT_SHA" \
+  --substitutions="_NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL,_NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY,SHORT_SHA=$SHORT_SHA" \
   --project="$PROJECT_ID"
 cd ..
 
