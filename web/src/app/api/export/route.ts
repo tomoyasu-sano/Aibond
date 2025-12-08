@@ -40,13 +40,14 @@ export async function GET() {
   }
 
   try {
-    // パートナーシップを取得（履歴削除されていないもの）
+    // パートナーシップを取得（activeなもの）
+    // Note: 再連携時にhistory_deleted_atがnullに戻るはずだが、
+    // 念のため条件から除外して、statusのみで判定する
     const { data: partnership } = await supabase
       .from("partnerships")
       .select("id, user1_id, user2_id, partnership_name, created_at")
       .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
       .eq("status", "active")
-      .is("history_deleted_at", null)
       .single();
 
     const partnerId = partnership
@@ -71,79 +72,58 @@ export async function GET() {
       partnerProfile = data;
     }
 
-    // 話し合い履歴を取得
-    let talks: any[] = [];
-    if (partnership) {
-      const { data } = await supabase
+    // 話し合い履歴を取得（/api/talksと同じロジックを使用）
+    // partnership_idがNULLのものも含めて、owner_user_idで取得
+    const { data: allTalks, error: talksError } = await supabase
+      .from("talks")
+      .select(`
+        id,
+        started_at,
+        ended_at,
+        duration_minutes,
+        summary,
+        speaker1_name,
+        speaker2_name,
+        deleted_at,
+        partnership_id,
+        talk_messages (
+          id,
+          speaker_tag,
+          original_text,
+          original_language,
+          translated_text,
+          timestamp
+        )
+      `)
+      .or(
+        partnership
+          ? `owner_user_id.eq.${user.id},partnership_id.eq.${partnership.id}`
+          : `owner_user_id.eq.${user.id}`
+      )
+      .order("started_at", { ascending: false });
+
+    console.log("[Export] User ID:", user.id);
+    console.log("[Export] Partnership:", JSON.stringify(partnership, null, 2));
+    console.log("[Export] Talks query error:", JSON.stringify(talksError, null, 2));
+    console.log("[Export] Talks data count:", allTalks?.length || 0);
+    if (allTalks && allTalks.length > 0) {
+      console.log("[Export] First talk sample:", JSON.stringify(allTalks[0], null, 2));
+    } else {
+      console.log("[Export] No talks found. Checking all talks for this user...");
+      // デバッグ用: owner_user_idのみで検索
+      const { data: debugTalks, error: debugError } = await supabase
         .from("talks")
-        .select(`
-          id,
-          started_at,
-          ended_at,
-          duration,
-          summary,
-          speaker1_name,
-          speaker2_name,
-          sentiment_messages (
-            id,
-            speaker,
-            content,
-            sentiment_score,
-            timestamp_seconds
-          )
-        `)
-        .eq("partnership_id", partnership.id)
-        .is("deleted_at", null)
-        .order("started_at", { ascending: false });
-
-      talks = data || [];
+        .select("id, owner_user_id, partnership_id, deleted_at, started_at")
+        .eq("owner_user_id", user.id);
+      console.log("[Export] Debug - All talks by owner_user_id:", JSON.stringify(debugTalks, null, 2));
+      console.log("[Export] Debug error:", JSON.stringify(debugError, null, 2));
     }
 
-    // 絆ノートを取得
-    let kizunaTopics: any[] = [];
+    const talks = allTalks || [];
 
-    // パートナーシップありの場合
-    if (partnership) {
-      const { data } = await supabase
-        .from("kizuna_topics")
-        .select(`
-          id,
-          title,
-          status,
-          created_at,
-          updated_at,
-          resolved_at,
-          kizuna_items (
-            id,
-            type,
-            content,
-            assignee,
-            status,
-            review_date,
-            created_at,
-            kizuna_feedbacks (
-              id,
-              rating,
-              comment,
-              created_at
-            ),
-            kizuna_reviews (
-              id,
-              result,
-              note,
-              created_at
-            )
-          )
-        `)
-        .eq("partnership_id", partnership.id)
-        .is("deleted_at", null)
-        .order("updated_at", { ascending: false });
-
-      kizunaTopics = data || [];
-    }
-
-    // パートナーシップなしで作成したものも取得
-    const { data: soloKizuna } = await supabase
+    // 絆ノートを取得（パートナーシップの有無に関わらず、ユーザーが作成したもの全て）
+    // deleted_atも含める
+    const { data: kizunaTopics } = await supabase
       .from("kizuna_topics")
       .select(`
         id,
@@ -152,6 +132,7 @@ export async function GET() {
         created_at,
         updated_at,
         resolved_at,
+        deleted_at,
         kizuna_items (
           id,
           type,
@@ -174,16 +155,10 @@ export async function GET() {
           )
         )
       `)
-      .is("partnership_id", null)
       .eq("created_by", user.id)
-      .is("deleted_at", null)
       .order("updated_at", { ascending: false });
 
-    if (soloKizuna) {
-      kizunaTopics = [...kizunaTopics, ...soloKizuna];
-    }
-
-    // 取説を取得
+    // 取説を取得（削除済みデータも含める）
     const { data: manualItems } = await supabase
       .from("manual_items")
       .select(`
@@ -196,13 +171,13 @@ export async function GET() {
         date,
         is_fixed,
         created_at,
-        updated_at
+        updated_at,
+        deleted_at
       `)
       .or(`user_id.eq.${user.id},target_user_id.eq.${user.id}`)
-      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
-    // AI相談履歴を取得
+    // AI相談履歴を取得（削除済みデータも含める）
     const { data: aiConsultations } = await supabase
       .from("ai_consultations")
       .select(`
@@ -210,6 +185,7 @@ export async function GET() {
         topic,
         created_at,
         updated_at,
+        deleted_at,
         ai_messages (
           id,
           role,
@@ -218,7 +194,6 @@ export async function GET() {
         )
       `)
       .eq("user_id", user.id)
-      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     // エクスポートデータを構築
@@ -241,24 +216,27 @@ export async function GET() {
         id: talk.id,
         started_at: talk.started_at,
         ended_at: talk.ended_at,
-        duration: talk.duration,
+        duration_minutes: talk.duration_minutes,
         summary: talk.summary,
         speaker1_name: talk.speaker1_name,
         speaker2_name: talk.speaker2_name,
-        messages: (talk.sentiment_messages || []).map((msg: any) => ({
-          speaker: msg.speaker,
-          content: msg.content,
-          sentiment_score: msg.sentiment_score,
-          timestamp_seconds: msg.timestamp_seconds,
+        deleted_at: talk.deleted_at,
+        messages: (talk.talk_messages || []).map((msg: any) => ({
+          speaker_tag: msg.speaker_tag,
+          original_text: msg.original_text,
+          original_language: msg.original_language,
+          translated_text: msg.translated_text,
+          timestamp: msg.timestamp,
         })),
       })),
-      kizuna_notes: kizunaTopics.map(topic => ({
+      kizuna_notes: (kizunaTopics || []).map(topic => ({
         id: topic.id,
         title: topic.title,
         status: topic.status,
         created_at: topic.created_at,
         updated_at: topic.updated_at,
         resolved_at: topic.resolved_at,
+        deleted_at: topic.deleted_at,
         items: (topic.kizuna_items || []).map((item: any) => ({
           id: item.id,
           type: item.type,
@@ -282,12 +260,14 @@ export async function GET() {
         is_fixed: item.is_fixed,
         created_at: item.created_at,
         updated_at: item.updated_at,
+        deleted_at: item.deleted_at,
       })),
       ai_consultations: (aiConsultations || []).map(consultation => ({
         id: consultation.id,
         topic: consultation.topic,
         created_at: consultation.created_at,
         updated_at: consultation.updated_at,
+        deleted_at: consultation.deleted_at,
         messages: (consultation.ai_messages || []).map((msg: any) => ({
           role: msg.role,
           content: msg.content,
