@@ -41,8 +41,10 @@ fi
 echo ""
 echo "🏗️  Building Docker image..."
 cd web
+SHORT_SHA=$(git rev-parse --short HEAD)
 gcloud builds submit \
   --config=cloudbuild.yaml \
+  --substitutions=SHORT_SHA="$SHORT_SHA" \
   --project="$PROJECT_ID"
 cd ..
 
