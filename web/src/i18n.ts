@@ -1,6 +1,14 @@
 import { getRequestConfig } from 'next-intl/server';
 import { cookies, headers } from 'next/headers';
 import { locales, defaultLocale, type Locale } from '@/config/locales';
+import enMessages from '../messages/en.json';
+import jaMessages from '../messages/ja.json';
+
+// メッセージマップ
+const messages = {
+  en: enMessages,
+  ja: jaMessages,
+} as const;
 
 // Cookie または Accept-Language ヘッダーから言語を取得
 async function getLocale(): Promise<Locale> {
@@ -30,6 +38,6 @@ export default getRequestConfig(async () => {
 
   return {
     locale,
-    messages: (await import(`../messages/${locale}.json`)).default,
+    messages: messages[locale],
   };
 });
