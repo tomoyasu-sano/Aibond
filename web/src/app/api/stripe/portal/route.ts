@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     // Customer Portalセッションを作成
     const session = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
-      return_url: `${request.nextUrl.origin}/settings`,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/settings`,
       locale: locale,
     });
 

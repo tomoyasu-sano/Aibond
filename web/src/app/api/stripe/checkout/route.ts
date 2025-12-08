@@ -86,8 +86,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${request.nextUrl.origin}/settings?checkout=success`,
-      cancel_url: `${request.nextUrl.origin}/plans?checkout=canceled`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/settings?checkout=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/plans?checkout=canceled`,
       metadata: {
         user_id: user.id,
         plan: plan,
