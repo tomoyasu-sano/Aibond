@@ -36,14 +36,41 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .single();
 
-    if (!subscription?.stripe_customer_id) {
-      return NextResponse.json(
-        { error: "No subscription found" },
-        { status: 404 }
-      );
-    }
-
     const stripe = getStripe();
+    let customerId = subscription?.stripe_customer_id;
+
+    // Customer IDがない場合は、既存のCustomerを検索または新規作成
+    if (!customerId) {
+      console.log("[Stripe Portal] No customer ID found, searching or creating customer");
+
+      // メールアドレスでCustomerを検索
+      const customers = await stripe.customers.list({
+        email: user.email,
+        limit: 1,
+      });
+
+      if (customers.data.length > 0) {
+        // 既存のCustomerが見つかった
+        customerId = customers.data[0].id;
+        console.log("[Stripe Portal] Found existing customer:", customerId);
+      } else {
+        // 新しいCustomerを作成
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            user_id: user.id,
+          },
+        });
+        customerId = customer.id;
+        console.log("[Stripe Portal] Created new customer:", customerId);
+      }
+
+      // データベースを更新
+      await supabase
+        .from("subscriptions")
+        .update({ stripe_customer_id: customerId })
+        .eq("user_id", user.id);
+    }
 
     // Cookie から言語設定を取得
     const cookieStore = await cookies();
@@ -52,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     // Customer Portalセッションを作成
     const session = await stripe.billingPortal.sessions.create({
-      customer: subscription.stripe_customer_id,
+      customer: customerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/settings`,
       locale: locale,
     });
