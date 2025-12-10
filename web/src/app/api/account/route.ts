@@ -52,7 +52,14 @@ export async function DELETE(request: NextRequest) {
         console.log("[Account Delete] Stripe subscription canceled");
       } catch (stripeError) {
         console.error("[Account Delete] Stripe cancel error:", stripeError);
-        // Stripeエラーは続行
+        // Stripeエラーの場合は削除を中止
+        return NextResponse.json(
+          {
+            error: "サブスクリプションのキャンセルに失敗しました。Stripe Customer Portalでサブスクリプションをキャンセルしてから、再度お試しください。",
+            details: stripeError instanceof Error ? stripeError.message : String(stripeError)
+          },
+          { status: 500 }
+        );
       }
     }
 

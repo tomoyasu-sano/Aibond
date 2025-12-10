@@ -1,6 +1,19 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { ensureCurrentPeriodUsage } from "@/lib/usage/client";
 import { NextResponse } from "next/server";
+
+// Supabase Admin Client (bypasses RLS)
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Supabase credentials not configured");
+  }
+
+  return createAdminClient(supabaseUrl, supabaseServiceKey);
+}
 
 export async function GET() {
   const supabase = await createClient();
@@ -18,9 +31,10 @@ export async function GET() {
     .eq("id", user.id)
     .single();
 
-  // If profile doesn't exist, create it
+  // If profile doesn't exist, create it using Admin client (bypasses RLS)
   if (profileError && profileError.code === "PGRST116") {
-    const { data: newProfile, error: createError } = await supabase
+    const adminSupabase = getSupabaseAdmin();
+    const { data: newProfile, error: createError } = await adminSupabase
       .from("user_profiles")
       .insert({ id: user.id, language: "ja" })
       .select()
@@ -46,9 +60,10 @@ export async function GET() {
     .eq("user_id", user.id)
     .single();
 
-  // If subscription doesn't exist, create it
+  // If subscription doesn't exist, create it using Admin client (bypasses RLS)
   if (subscriptionError && subscriptionError.code === "PGRST116") {
-    const { data: newSubscription, error: createError } = await supabase
+    const adminSupabase = getSupabaseAdmin();
+    const { data: newSubscription, error: createError } = await adminSupabase
       .from("subscriptions")
       .insert({ user_id: user.id, plan: "free" })
       .select()
