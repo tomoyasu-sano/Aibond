@@ -456,6 +456,13 @@ function SettingsContent() {
                         <li>{t("deleteList2")}</li>
                         <li>{t("deleteList3")}</li>
                       </ul>
+                      {data.subscription.plan !== "free" && (
+                        <div className="rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3">
+                          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                            {t("deleteSubscriptionWarning")}
+                          </p>
+                        </div>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         {t("deleteNote")}
                       </p>

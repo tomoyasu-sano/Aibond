@@ -565,6 +565,7 @@
     "deleteList1": "Profile information",
     "deleteList2": "Subscription (will be cancelled)",
     "deleteList3": "Partner link",
+    "deleteSubscriptionWarning": "⚠️ If you have a paid plan, your subscription will be immediately cancelled upon deletion. Please note that there will be no refund for the remaining period you have already paid for.",
     "deleteNote": "* Conversation history and audio data will be anonymized and retained for service improvement. For complete deletion, please contact support@aibond.com.",
     "confirmDelete": "Type \"delete\" to confirm",
     "confirmDeletePlaceholder": "delete",

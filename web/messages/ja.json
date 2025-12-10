@@ -565,6 +565,7 @@
     "deleteList1": "プロフィール情報",
     "deleteList2": "サブスクリプション（キャンセルされます）",
     "deleteList3": "パートナー連携",
+    "deleteSubscriptionWarning": "⚠️ 有料プランをご利用の場合、削除と同時にサブスクリプションが即座にキャンセルされます。お支払い済みの期間分の返金は行われませんので、予めご了承ください。",
     "deleteNote": "※会話履歴・音声データは匿名化され、サービス改善のために保持されます。完全削除をご希望の場合は support@aibond.com までご連絡ください。",
     "confirmDelete": "確認のため「削除する」と入力してください",
     "confirmDeletePlaceholder": "削除する",
