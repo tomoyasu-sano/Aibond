@@ -36,7 +36,12 @@ export async function GET() {
     const adminSupabase = getSupabaseAdmin();
     const { data: newProfile, error: createError } = await adminSupabase
       .from("user_profiles")
-      .insert({ id: user.id, language: "ja" })
+      .insert({
+        id: user.id,
+        language: "ja",
+        name: user.email?.split('@')[0] || "User", // デフォルト名
+        display_name: null
+      })
       .select()
       .single();
 
