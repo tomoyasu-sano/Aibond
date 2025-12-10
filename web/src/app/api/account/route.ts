@@ -50,16 +50,28 @@ export async function DELETE(request: NextRequest) {
         const stripe = getStripe();
         await stripe.subscriptions.cancel(subscription.stripe_subscription_id);
         console.log("[Account Delete] Stripe subscription canceled");
-      } catch (stripeError) {
+      } catch (stripeError: any) {
         console.error("[Account Delete] Stripe cancel error:", stripeError);
-        // Stripeエラーの場合は削除を中止
-        return NextResponse.json(
-          {
-            error: "サブスクリプションのキャンセルに失敗しました。Stripe Customer Portalでサブスクリプションをキャンセルしてから、再度お試しください。",
-            details: stripeError instanceof Error ? stripeError.message : String(stripeError)
-          },
-          { status: 500 }
-        );
+
+        // サブスクリプションが見つからない場合は警告のみで続行
+        // (既にキャンセル済み、または異なるモードのサブスクリプション)
+        const isNotFoundError =
+          stripeError?.type === 'StripeInvalidRequestError' &&
+          (stripeError?.message?.includes('No such subscription') ||
+           stripeError?.code === 'resource_missing');
+
+        if (isNotFoundError) {
+          console.warn("[Account Delete] Subscription not found, continuing deletion:", subscription.stripe_subscription_id);
+        } else {
+          // その他のStripeエラーの場合は削除を中止
+          return NextResponse.json(
+            {
+              error: "サブスクリプションのキャンセルに失敗しました。Stripe Customer Portalでサブスクリプションをキャンセルしてから、再度お試しください。",
+              details: stripeError instanceof Error ? stripeError.message : String(stripeError)
+            },
+            { status: 500 }
+          );
+        }
       }
     }
 
