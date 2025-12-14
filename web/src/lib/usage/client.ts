@@ -40,7 +40,7 @@ export async function checkUsage(
     .single();
 
   const minutesUsed = usage?.minutes_used || 0;
-  const minutesLimit = usage?.minutes_limit || 120; // デフォルトはFree（2時間）
+  const minutesLimit = usage?.minutes_limit || 60; // デフォルトはFree（1時間）
   const remainingMinutes = Math.max(0, minutesLimit - minutesUsed);
   const usagePercent = minutesLimit > 0 ? Math.round((minutesUsed / minutesLimit) * 100) : 0;
 
@@ -198,12 +198,14 @@ export async function ensureCurrentPeriodUsage(
     .single();
 
   const plan = subscription?.plan || "free";
-  let minutesLimit = 120; // Free: 2時間
+  let minutesLimit = 60; // Free: 1時間
 
-  if (plan === "standard") {
-    minutesLimit = 900; // Standard: 15時間
+  if (plan === "light") {
+    minutesLimit = 300; // Light: 5時間
+  } else if (plan === "standard") {
+    minutesLimit = 600; // Standard: 10時間
   } else if (plan === "premium") {
-    minutesLimit = 2400; // Premium: 40時間
+    minutesLimit = 1500; // Premium: 25時間
   }
 
   // 新しい月のusageレコードを作成

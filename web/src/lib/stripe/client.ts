@@ -28,17 +28,23 @@ export function getStripe(): Stripe {
  * プラン設定
  */
 export const STRIPE_PLANS = {
+  light: {
+    priceId: process.env.STRIPE_PRICE_LIGHT || "",
+    name: "ライト",
+    price: 1280,
+    minutes: 300, // 5時間 = 300分
+  },
   standard: {
     priceId: process.env.STRIPE_PRICE_STANDARD || "",
     name: "スタンダード",
     price: 1980,
-    minutes: 900, // 15時間 = 900分
+    minutes: 600, // 10時間 = 600分
   },
   premium: {
     priceId: process.env.STRIPE_PRICE_PREMIUM || "",
     name: "プレミアム",
     price: 2980,
-    minutes: 2400, // 40時間 = 2400分
+    minutes: 1500, // 25時間 = 1500分
   },
 } as const;
 

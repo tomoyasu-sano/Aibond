@@ -102,7 +102,7 @@ async function handleCheckoutCompleted(
   console.log("[Stripe Webhook] Session customer:", session.customer);
 
   const userId = session.metadata?.user_id;
-  const plan = session.metadata?.plan as "standard" | "premium";
+  const plan = session.metadata?.plan as "light" | "standard" | "premium";
   const subscriptionId = session.subscription as string;
   const customerId = session.customer as string;
 
@@ -194,9 +194,11 @@ async function handleSubscriptionUpdated(
 
   // Price IDからプランを特定
   const priceId = subscription.items.data[0]?.price.id;
-  let plan: "free" | "standard" | "premium" = "free";
+  let plan: "free" | "light" | "standard" | "premium" = "free";
 
-  if (priceId === STRIPE_PLANS.standard.priceId) {
+  if (priceId === STRIPE_PLANS.light.priceId) {
+    plan = "light";
+  } else if (priceId === STRIPE_PLANS.standard.priceId) {
     plan = "standard";
   } else if (priceId === STRIPE_PLANS.premium.priceId) {
     plan = "premium";
@@ -238,7 +240,7 @@ async function handleSubscriptionUpdated(
   }
 
   // usageテーブルの上限も更新
-  const planConfig = plan === "free" ? { minutes: 120 } : STRIPE_PLANS[plan];
+  const planConfig = plan === "free" ? { minutes: 60 } : STRIPE_PLANS[plan];
   const period = new Date().toISOString().slice(0, 7);
   await supabase
     .from("usage")
@@ -290,7 +292,7 @@ async function handleSubscriptionDeleted(
   await supabase
     .from("usage")
     .update({
-      minutes_limit: 120, // Free: 2時間
+      minutes_limit: 60, // Free: 1時間
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId)
@@ -345,7 +347,7 @@ async function handlePaymentFailed(
   await supabase
     .from("usage")
     .update({
-      minutes_limit: 120, // Free: 2時間
+      minutes_limit: 60, // Free: 1時間
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId)

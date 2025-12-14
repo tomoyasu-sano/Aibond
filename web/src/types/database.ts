@@ -1,6 +1,6 @@
 // Database types based on Supabase schema
 
-export type PlanType = "free" | "standard" | "premium";
+export type PlanType = "free" | "light" | "standard" | "premium";
 
 export type LanguageCode =
   | "ja" // 日本語
@@ -126,9 +126,10 @@ export interface AIConsultationMessage {
 
 // Plan limits
 export const PLAN_LIMITS: Record<PlanType, { minutes: number; label: string }> = {
-  free: { minutes: 120, label: "月2時間" },
-  standard: { minutes: 900, label: "月15時間" },
-  premium: { minutes: -1, label: "無制限" },
+  free: { minutes: 60, label: "月1時間" },
+  light: { minutes: 300, label: "月5時間" },
+  standard: { minutes: 600, label: "月10時間" },
+  premium: { minutes: 1500, label: "月25時間" },
 };
 
 // Talk Sentiment Analysis

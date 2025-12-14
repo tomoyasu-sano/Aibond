@@ -358,22 +358,24 @@ function SettingsContent() {
                 )}
               </div>
 
-              {data.subscription.plan === "free" ? (
-                <Link href="/plans">
-                  <Button className="w-full">
-                    {t("upgradeButton")}
+              <div className="mt-4">
+                {data.subscription.plan === "free" ? (
+                  <Link href="/plans">
+                    <Button className="w-full">
+                      {t("upgradeButton")}
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleManageSubscription}
+                    disabled={processingPortal}
+                  >
+                    {processingPortal ? tc("loading") : t("manageSubscription")}
                   </Button>
-                </Link>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleManageSubscription}
-                  disabled={processingPortal}
-                >
-                  {processingPortal ? tc("loading") : t("manageSubscription")}
-                </Button>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
 
