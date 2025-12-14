@@ -447,10 +447,10 @@ function SettingsContent() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>{t("deletePrompt")}</AlertDialogTitle>
-                    <AlertDialogDescription className="space-y-3">
-                      <p>
-                        {t("deleteDescription")}
-                      </p>
+                    <AlertDialogDescription>
+                      {t("deleteDescription")}
+                    </AlertDialogDescription>
+                    <div className="space-y-3 pt-2">
                       <ul className="list-disc pl-5 space-y-1 text-sm">
                         <li>{t("deleteList1")}</li>
                         <li>{t("deleteList2")}</li>
@@ -478,7 +478,7 @@ function SettingsContent() {
                           onChange={(e) => setDeleteConfirmText(e.target.value)}
                         />
                       </div>
-                    </AlertDialogDescription>
+                    </div>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel onClick={() => setDeleteConfirmText("")}>

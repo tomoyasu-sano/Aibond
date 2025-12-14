@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookCover } from "@/components/manual/BookCover";
 import { BookContent } from "@/components/manual/BookContent";
-import { ManualOnboarding } from "@/components/onboarding/ManualOnboarding";
+// import { ManualOnboarding } from "@/components/onboarding/ManualOnboarding";
 import { MobileNavMenu } from "@/components/MobileNavMenu";
 import type { ManualItem } from "@/types/manual";
 
@@ -207,7 +207,7 @@ export function ManualContent({
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <ManualOnboarding />
+      {/* <ManualOnboarding /> */}
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-14 md:h-16 items-center justify-between px-4">

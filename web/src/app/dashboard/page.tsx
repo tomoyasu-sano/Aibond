@@ -9,7 +9,7 @@ import { PLAN_LIMITS, type PlanType } from "@/types/database";
 import { MobileNavMenu } from "@/components/MobileNavMenu";
 import { SentimentCard } from "@/components/dashboard/SentimentCard";
 import { ManualCard } from "@/components/dashboard/ManualCard";
-import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
+// import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -65,7 +65,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* オンボーディング */}
-      <DashboardOnboarding />
+      {/* <DashboardOnboarding /> */}
 
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

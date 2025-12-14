@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MobileNavMenu } from "@/components/MobileNavMenu";
 import { toast } from "sonner";
-import { TalksOnboarding } from "@/components/onboarding/TalksOnboarding";
+// import { TalksOnboarding } from "@/components/onboarding/TalksOnboarding";
 
 interface Talk {
   id: string;
@@ -218,7 +218,7 @@ export default function TalksPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <TalksOnboarding />
+      {/* <TalksOnboarding /> */}
       <Header onSignOut={handleSignOut} t={t} tc={tc} />
 
       <main className="w-full max-w-6xl mx-auto px-4 py-6 md:py-8">

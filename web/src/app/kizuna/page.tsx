@@ -28,7 +28,7 @@ import {
 import { toast } from "sonner";
 import { Pencil, Trash2 } from "lucide-react";
 import { EmptyStateIcon, TopicStatusIcon, ReviewDueIcon } from "@/components/kizuna/KizunaIcons";
-import { KizunaOnboarding } from "@/components/onboarding/KizunaOnboarding";
+// import { KizunaOnboarding } from "@/components/onboarding/KizunaOnboarding";
 
 interface Topic {
   id: string;
@@ -265,7 +265,7 @@ export default function KizunaPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <KizunaOnboarding />
+      {/* <KizunaOnboarding /> */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <Link href="/dashboard" className="flex items-center gap-2">

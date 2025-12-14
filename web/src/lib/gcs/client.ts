@@ -85,3 +85,38 @@ export async function deleteAudioFromGCS(talkId: string): Promise<void> {
     console.error(`[GCS] Failed to delete audio: ${fileName}`, error);
   }
 }
+
+/**
+ * GCS音声ファイルのメタデータを更新して匿名化
+ */
+export async function anonymizeAudioMetadata(
+  talkId: string,
+  anonymousUserId: string
+): Promise<void> {
+  const storage = getStorageClient();
+  const bucket = storage.bucket(GCS_AUDIO_BUCKET);
+  const fileName = `${talkId}.webm`;
+  const file = bucket.file(fileName);
+
+  try {
+    // ファイルが存在するか確認
+    const [exists] = await file.exists();
+    if (!exists) {
+      console.log(`[GCS] Audio file not found, skipping: ${fileName}`);
+      return;
+    }
+
+    // メタデータを更新
+    await file.setMetadata({
+      metadata: {
+        talkId,
+        anonymousUserId,
+        anonymizedAt: new Date().toISOString(),
+      },
+    });
+
+    console.log(`[GCS] Anonymized audio metadata: ${fileName} -> ${anonymousUserId}`);
+  } catch (error) {
+    console.error(`[GCS] Failed to anonymize audio metadata: ${fileName}`, error);
+  }
+}

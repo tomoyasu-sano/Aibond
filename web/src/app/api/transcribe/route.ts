@@ -13,12 +13,14 @@ function getSpeechClient(): SpeechClient {
     console.log("Initializing SpeechClient with credentials from:", credentialsPath);
 
     if (credentialsPath && fs.existsSync(credentialsPath)) {
+      // ローカル開発: サービスアカウントキーファイルを使用
       const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
       console.log("Using credentials for project:", credentials.project_id);
       speechClient = new SpeechClient({ credentials });
     } else {
-      console.error("AIBOND_GCP_CREDENTIALS_PATH not set or file not found");
-      throw new Error("Google Cloud credentials not configured");
+      // Cloud Run: デフォルト認証を使用
+      console.log("Using default credentials");
+      speechClient = new SpeechClient();
     }
   }
   return speechClient;

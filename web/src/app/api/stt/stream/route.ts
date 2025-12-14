@@ -103,13 +103,19 @@ export async function GET(request: NextRequest) {
 
   // 認証情報の準備
   const credentialsPath = process.env.AIBOND_GCP_CREDENTIALS_PATH;
-  if (!credentialsPath || !fs.existsSync(credentialsPath)) {
-    console.error("[STT Stream] Credentials not found");
-    return new Response("Google Cloud credentials not configured", { status: 500 });
-  }
+  let credentials: any = null;
+  let projectId: string;
 
-  const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
-  const projectId = credentials.project_id;
+  if (credentialsPath && fs.existsSync(credentialsPath)) {
+    // ローカル開発: サービスアカウントキーファイルを使用
+    credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
+    projectId = credentials.project_id;
+    console.log("[STT Stream] Using credentials from file");
+  } else {
+    // Cloud Run: デフォルト認証を使用
+    projectId = process.env.GOOGLE_CLOUD_PROJECT || "aibond-479715";
+    console.log("[STT Stream] Using default credentials");
+  }
 
   // SSEストリーム作成
   const stream = new ReadableStream({
@@ -132,10 +138,14 @@ export async function GET(request: NextRequest) {
         console.log("[STT Stream] Initializing Speech V2 client");
 
         // SpeechClient V2作成
-        const speechClient = new v2.SpeechClient({
-          credentials,
-          apiEndpoint: "asia-northeast1-speech.googleapis.com",
-        });
+        const speechClient = credentials
+          ? new v2.SpeechClient({
+              credentials,
+              apiEndpoint: "asia-northeast1-speech.googleapis.com",
+            })
+          : new v2.SpeechClient({
+              apiEndpoint: "asia-northeast1-speech.googleapis.com",
+            });
 
         // Recognizer設定（asia-northeast1でChirp 3が利用可能）
         const recognizerPath = `projects/${projectId}/locations/asia-northeast1/recognizers/_`;

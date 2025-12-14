@@ -19,16 +19,21 @@ function getClient(): { client: TranslationServiceClient; projectId: string } {
   }
 
   const credentialsPath = process.env.AIBOND_GCP_CREDENTIALS_PATH;
-  if (!credentialsPath || !fs.existsSync(credentialsPath)) {
-    throw new Error("Google Cloud credentials not configured");
+
+  if (credentialsPath && fs.existsSync(credentialsPath)) {
+    // ローカル開発: サービスアカウントキーファイルを使用
+    const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
+    projectId = credentials.project_id;
+
+    translationClient = new TranslationServiceClient({
+      credentials,
+    });
+  } else {
+    // Cloud Run: デフォルト認証を使用
+    projectId = process.env.GOOGLE_CLOUD_PROJECT || "aibond-479715";
+
+    translationClient = new TranslationServiceClient();
   }
-
-  const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
-  projectId = credentials.project_id;
-
-  translationClient = new TranslationServiceClient({
-    credentials,
-  });
 
   return { client: translationClient, projectId: projectId! };
 }

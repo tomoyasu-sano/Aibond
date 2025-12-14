@@ -56,19 +56,29 @@ export async function executeDiarization(
 
     // GCP認証情報取得
     const credentialsPath = process.env.AIBOND_GCP_CREDENTIALS_PATH;
-    if (!credentialsPath || !fs.existsSync(credentialsPath)) {
-      console.error("[Diarize] Credentials not found");
-      throw new Error("GCP credentials not configured");
+    let credentials: any = null;
+    let projectId: string;
+
+    if (credentialsPath && fs.existsSync(credentialsPath)) {
+      // ローカル開発: サービスアカウントキーファイルを使用
+      credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
+      projectId = credentials.project_id;
+      console.log("[Diarize] Using credentials from file");
+    } else {
+      // Cloud Run: デフォルト認証を使用
+      projectId = process.env.GOOGLE_CLOUD_PROJECT || "aibond-479715";
+      console.log("[Diarize] Using default credentials");
     }
 
-    const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
-    const projectId = credentials.project_id;
-
     // SpeechClient作成
-    const speechClient = new v2.SpeechClient({
-      credentials,
-      apiEndpoint: "asia-northeast1-speech.googleapis.com",
-    });
+    const speechClient = credentials
+      ? new v2.SpeechClient({
+          credentials,
+          apiEndpoint: "asia-northeast1-speech.googleapis.com",
+        })
+      : new v2.SpeechClient({
+          apiEndpoint: "asia-northeast1-speech.googleapis.com",
+        });
 
     // ユーザーの言語を取得（talk.owner_user_idを使用）
     const { data: profile } = await supabase

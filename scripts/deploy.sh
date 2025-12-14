@@ -94,7 +94,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --timeout=300 \
   --concurrency=80 \
   --port=8080 \
-  --set-env-vars="NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1" \
+  --set-env-vars="NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1,ADMIN_EMAILS=anytimes.sano@gmail.com,NEXT_PUBLIC_APP_URL=https://aibond-web-694039525012.asia-northeast1.run.app" \
   --set-secrets="NEXT_PUBLIC_SUPABASE_URL=supabase-url:latest,\
 NEXT_PUBLIC_SUPABASE_ANON_KEY=supabase-anon-key:latest,\
 SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest,\
