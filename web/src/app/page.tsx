@@ -131,6 +131,15 @@ export default async function LandingPage() {
       highlighted: false,
     },
     {
+      nameKey: "planLight",
+      price: "¥1,280",
+      periodKey: "perMonth",
+      descriptionKey: "lightReason",
+      features: ["planFeature1Light", "planFeature2", "planFeature3", "planFeature4", "planFeature8", "planFeature9", "planFeature5", "planFeature7"],
+      ctaKey: "planCtaLight",
+      highlighted: false,
+    },
+    {
       nameKey: "planStandard",
       price: "¥1,980",
       periodKey: "perMonth",
@@ -141,7 +150,7 @@ export default async function LandingPage() {
     },
     {
       nameKey: "planPremium",
-      price: "¥4,980",
+      price: "¥2,980",
       periodKey: "perMonth",
       descriptionKey: "premiumReason",
       features: ["planFeature1Premium", "planFeature2", "planFeature3", "planFeature4", "planFeature8", "planFeature9", "planFeature5", "planFeature6", "planFeature7"],
@@ -385,7 +394,7 @@ export default async function LandingPage() {
               </p>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 max-w-7xl mx-auto">
               {plans.map((plan, index) => (
                 <Card
                   key={plan.nameKey}
