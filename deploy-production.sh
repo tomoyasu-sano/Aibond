@@ -121,10 +121,9 @@ SUPABASE_ANON_KEY=$(gcloud secrets versions access latest --secret="supabase-ano
 
 # Cloud Build でビルド（build argsを渡す）
 if gcloud builds submit \
-    --tag="$IMAGE_NAME:$GIT_SHA" \
     --project="$PROJECT_ID" \
     --timeout=20m \
-    --substitutions="_NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL,_NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" \
+    --substitutions="_IMAGE_NAME=$IMAGE_NAME,_GIT_SHA=$GIT_SHA,_NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL,_NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" \
     --config=- <<EOF
 steps:
 - name: 'gcr.io/cloud-builders/docker'
@@ -133,10 +132,10 @@ steps:
   - '--build-arg=NEXT_PUBLIC_SUPABASE_URL=\$_NEXT_PUBLIC_SUPABASE_URL'
   - '--build-arg=NEXT_PUBLIC_SUPABASE_ANON_KEY=\$_NEXT_PUBLIC_SUPABASE_ANON_KEY'
   - '-t'
-  - '$IMAGE_NAME:$GIT_SHA'
+  - '\$_IMAGE_NAME:\$_GIT_SHA'
   - '.'
 images:
-- '$IMAGE_NAME:$GIT_SHA'
+- '\$_IMAGE_NAME:\$_GIT_SHA'
 EOF
 then
     echo ""
