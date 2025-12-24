@@ -114,11 +114,31 @@ cd web
 # Git SHA を取得
 GIT_SHA=$(git rev-parse --short HEAD)
 
-# Cloud Build でビルド
+# Secret Manager から環境変数を取得（ビルド時に必要）
+echo "Fetching build-time secrets..."
+SUPABASE_URL=$(gcloud secrets versions access latest --secret="supabase-url" --project="$PROJECT_ID" 2>/dev/null || echo "")
+SUPABASE_ANON_KEY=$(gcloud secrets versions access latest --secret="supabase-anon-key" --project="$PROJECT_ID" 2>/dev/null || echo "")
+
+# Cloud Build でビルド（build argsを渡す）
 if gcloud builds submit \
     --tag="$IMAGE_NAME:$GIT_SHA" \
     --project="$PROJECT_ID" \
-    --timeout=20m; then
+    --timeout=20m \
+    --substitutions="_NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL,_NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" \
+    --config=- <<EOF
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+  - 'build'
+  - '--build-arg=NEXT_PUBLIC_SUPABASE_URL=\$_NEXT_PUBLIC_SUPABASE_URL'
+  - '--build-arg=NEXT_PUBLIC_SUPABASE_ANON_KEY=\$_NEXT_PUBLIC_SUPABASE_ANON_KEY'
+  - '-t'
+  - '$IMAGE_NAME:$GIT_SHA'
+  - '.'
+images:
+- '$IMAGE_NAME:$GIT_SHA'
+EOF
+then
     echo ""
     echo -e "${GREEN}✓${NC} Dockerイメージのビルド完了: $GIT_SHA"
 else

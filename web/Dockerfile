@@ -14,12 +14,23 @@ RUN npm ci
 # Copy application code
 COPY . .
 
+# Accept build arguments for Next.js public environment variables
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Make build args available to Next.js build process
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 # Build Next.js application
 RUN npm run build
+
+# Unset public env vars after build (they'll be provided at runtime)
+ENV NEXT_PUBLIC_SUPABASE_URL=
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 # Stage 2: Runner
 FROM node:20-slim AS runner

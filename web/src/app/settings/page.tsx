@@ -152,10 +152,21 @@ function SettingsContent() {
   };
 
   const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Error during sign out:", error);
+      // Even if Supabase sign out fails, clear local storage and redirect
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      router.push("/");
+      router.refresh();
+    }
   };
 
   const handleManageSubscription = async () => {
