@@ -119,25 +119,26 @@ echo "Fetching build-time secrets..."
 SUPABASE_URL=$(gcloud secrets versions access latest --secret="supabase-url" --project="$PROJECT_ID" 2>/dev/null || echo "")
 SUPABASE_ANON_KEY=$(gcloud secrets versions access latest --secret="supabase-anon-key" --project="$PROJECT_ID" 2>/dev/null || echo "")
 
-# Cloud Build でビルド（build argsを渡す）
-if gcloud builds submit \
-    --project="$PROJECT_ID" \
-    --timeout=20m \
-    --substitutions="_IMAGE_NAME=$IMAGE_NAME,_GIT_SHA=$GIT_SHA,_NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL,_NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" \
-    --config=- <<EOF
+# 一時的なcloudbuild.yamlを作成
+cat > /tmp/cloudbuild-temp.yaml <<YAML
 steps:
 - name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
-  - '--build-arg=NEXT_PUBLIC_SUPABASE_URL=\$_NEXT_PUBLIC_SUPABASE_URL'
-  - '--build-arg=NEXT_PUBLIC_SUPABASE_ANON_KEY=\$_NEXT_PUBLIC_SUPABASE_ANON_KEY'
+  - '--build-arg=NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL'
+  - '--build-arg=NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY'
   - '-t'
-  - '\$_IMAGE_NAME:\$_GIT_SHA'
+  - '$IMAGE_NAME:$GIT_SHA'
   - '.'
 images:
-- '\$_IMAGE_NAME:\$_GIT_SHA'
-EOF
-then
+- '$IMAGE_NAME:$GIT_SHA'
+YAML
+
+# Cloud Build でビルド
+if gcloud builds submit \
+    --project="$PROJECT_ID" \
+    --timeout=20m \
+    --config=/tmp/cloudbuild-temp.yaml; then
     echo ""
     echo -e "${GREEN}✓${NC} Dockerイメージのビルド完了: $GIT_SHA"
 else
