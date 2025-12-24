@@ -8,6 +8,8 @@ A conversation recording and translation tool for international couples
 [![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat&logo=supabase&logoColor=white)](https://supabase.com/)
 [![Google Cloud](https://img.shields.io/badge/Google_Cloud-4285F4?style=flat&logo=google-cloud&logoColor=white)](https://cloud.google.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Status](https://img.shields.io/badge/status-production-green)](https://aibond-web-694039525012.asia-northeast1.run.app)
 
 ## Overview
 
@@ -24,6 +26,20 @@ Aibond is a SaaS platform designed for international couples and families (estim
 ## Demo
 
 🔗 **Live Production**: https://aibond-web-694039525012.asia-northeast1.run.app
+
+## Screenshots
+
+### Dashboard
+![Dashboard](web/public/hero-couple-cafe.png)
+*Main dashboard showing conversation history and AI insights*
+
+### Real-time Translation
+![Translation Feature](web/public/feature-translation.png)
+*Real-time speech recognition and translation in action*
+
+### AI Analysis
+![AI Analysis](web/public/feature-ai.png)
+*AI-powered conversation summarization and commitment extraction*
 
 ## Main Features
 
@@ -98,6 +114,27 @@ Aibond/
 ├── SPECIFICATION/         # Technical specifications
 └── documents/            # Documentation
 ```
+
+## Testing
+
+**Note**: This project is currently in production and has been manually tested for all core functionalities. Automated test coverage is planned for future iterations (WIP).
+
+All features have been thoroughly validated through:
+- Manual end-to-end testing
+- Production monitoring
+- User feedback integration
+- Real-world usage scenarios
+
+## Author
+
+**Tomoyasu Sano**
+- GitHub: [@tomoyasu-sano](https://github.com/tomoyasu-sano)
+- LinkedIn: [Tomoyasu Sano](https://www.linkedin.com/in/tomoyasu-sano-763723123/)
+- Email: anytimes.sano@gmail.com
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
