@@ -94,6 +94,11 @@ spec:
             secretKeyRef:
               name: stripe-price-premium
               key: latest
+        - name: STRIPE_PRICE_LIGHT
+          valueFrom:
+            secretKeyRef:
+              name: stripe-price-light
+              key: latest
 
         startupProbe:
           httpGet:

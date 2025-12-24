@@ -1,0 +1,48 @@
+# Cloud Build configuration for Aibond Web
+# Builds Docker image with NEXT_PUBLIC_* environment variables
+
+steps:
+  # Build Docker image with build args from Secret Manager
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    dir: 'web'
+    secretEnv: ['SUPABASE_URL', 'SUPABASE_ANON_KEY']
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_SUPABASE_URL=$$SUPABASE_URL'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_SUPABASE_ANON_KEY=$$SUPABASE_ANON_KEY'
+      - '-t'
+      - '${_IMAGE_NAME}:${_GIT_SHA}'
+      - '-t'
+      - '${_IMAGE_NAME}:latest'
+      - '.'
+
+  # Push Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_IMAGE_NAME}'
+
+# Substitutions for dynamic values
+substitutions:
+  _IMAGE_NAME: 'asia-northeast1-docker.pkg.dev/aibond-479715/aibond/web'
+  _GIT_SHA: '${SHORT_SHA}'
+
+# Secret Manager secrets
+availableSecrets:
+  secretManager:
+    - versionName: projects/aibond-479715/secrets/supabase-url/versions/latest
+      env: 'SUPABASE_URL'
+    - versionName: projects/aibond-479715/secrets/supabase-anon-key/versions/latest
+      env: 'SUPABASE_ANON_KEY'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '1200s'  # 20 minutes
