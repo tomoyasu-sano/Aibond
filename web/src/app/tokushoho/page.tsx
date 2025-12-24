@@ -52,6 +52,7 @@ export default function TokushohoPage() {
                                 <td className="py-3 px-4">
                                     <ul className="list-disc pl-4 space-y-1">
                                         <li>{t("priceFree")}</li>
+                                        <li>{t("priceLight")}</li>
                                         <li>{t("priceStandard")}</li>
                                         <li>{t("pricePremium")}</li>
                                     </ul>
