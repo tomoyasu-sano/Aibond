@@ -128,7 +128,7 @@ function PlansContent() {
     }
   };
 
-  const handleSelectPlan = async (planKey: "standard" | "premium") => {
+  const handleSelectPlan = async (planKey: "light" | "standard" | "premium") => {
     setProcessing(true);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -181,8 +181,8 @@ function PlansContent() {
         <main className="container mx-auto px-4 py-8">
           <div className="animate-pulse space-y-8">
             <div className="h-8 w-48 bg-muted rounded mx-auto" />
-            <div className="grid gap-6 md:grid-cols-3">
-              {[1, 2, 3].map((i) => (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-96 bg-muted rounded-lg" />
               ))}
             </div>
@@ -204,14 +204,16 @@ function PlansContent() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3 max-w-5xl mx-auto">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 max-w-7xl mx-auto">
           {PLANS.map((plan) => {
             const isCurrent = currentPlan === plan.key;
             const isUpgrade =
               (currentPlan === "free" && plan.key !== "free") ||
+              (currentPlan === "light" && (plan.key === "standard" || plan.key === "premium")) ||
               (currentPlan === "standard" && plan.key === "premium");
             const isDowngrade =
-              (currentPlan === "premium" && plan.key === "standard") ||
+              (currentPlan === "premium" && (plan.key === "standard" || plan.key === "light")) ||
+              (currentPlan === "standard" && plan.key === "light") ||
               (currentPlan !== "free" && plan.key === "free");
 
             return (
@@ -278,7 +280,7 @@ function PlansContent() {
                   ) : isUpgrade ? (
                     <Button
                       className="w-full"
-                      onClick={() => handleSelectPlan(plan.key as "standard" | "premium")}
+                      onClick={() => handleSelectPlan(plan.key as "light" | "standard" | "premium")}
                     >
                       {t("upgrade")}
                     </Button>
@@ -293,7 +295,7 @@ function PlansContent() {
                   ) : (
                     <Button
                       className="w-full"
-                      onClick={() => handleSelectPlan(plan.key as "standard" | "premium")}
+                      onClick={() => handleSelectPlan(plan.key as "light" | "standard" | "premium")}
                     >
                       {t("selectPlan")}
                     </Button>
