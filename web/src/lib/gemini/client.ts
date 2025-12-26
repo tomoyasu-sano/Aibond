@@ -349,7 +349,7 @@ export async function generateIntegratedSummary(
   }
 
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-3-pro-preview" });
+  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   // 会話内容をテキストに変換
   const conversationText = messages
