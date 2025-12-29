@@ -80,7 +80,7 @@ export async function generateTalkSummary(
   }
 
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
   // 会話内容をテキストに変換
   const conversationText = messages
@@ -174,7 +174,7 @@ export async function generateBondNoteItems(
   }
 
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
   // 会話内容をテキストに変換
   const conversationText = messages
@@ -349,7 +349,7 @@ export async function generateIntegratedSummary(
   }
 
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
   // 会話内容をテキストに変換
   const conversationText = messages
@@ -569,7 +569,7 @@ export async function generateAIChatResponse(
   partnerManualItems?: ManualItem[]
 ): Promise<string> {
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
   const fullPrompt = buildChatPrompt(userMessage, chatHistory, recentSummaries, userManualItems, partnerManualItems);
 
@@ -594,7 +594,7 @@ export async function* generateAIChatResponseStream(
   partnerManualItems?: ManualItem[]
 ): AsyncGenerator<string, void, unknown> {
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
   const fullPrompt = buildChatPrompt(userMessage, chatHistory, recentSummaries, userManualItems, partnerManualItems);
 
@@ -638,7 +638,7 @@ export async function generateManualItemsFromVoice(
   }
 
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
   const prompt = `あなたは取説（マニュアル）項目を生成するアシスタントです。
 ユーザーが話した内容から、以下のカテゴリーに該当する項目を抽出してJSON形式で返してください。

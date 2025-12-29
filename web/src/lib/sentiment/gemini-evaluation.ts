@@ -86,7 +86,7 @@ export async function generateSentimentEvaluation(
   input: EvaluationInput
 ): Promise<EvaluationResult> {
   const client = getClient();
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
   const previousDataText = formatPreviousAnalyses(input.previousAnalyses);
 
