@@ -90,18 +90,55 @@ export async function POST(request: NextRequest) {
     console.log("[Summary] Messages count:", messagesWithNames.length);
 
     // 既存の継続中のテーマを取得（パートナーシップがある場合）
-    let existingTopics: { id: string; title: string }[] = [];
+    let existingTopics: Array<{
+      id: string;
+      title: string;
+      items: Array<{
+        content: string;
+        type: string;
+        assignee?: string;
+      }>;
+      itemCount: number;
+    }> = [];
     let formattedRecentItems: any[] = [];
     let existingManualItems: { question: string; answer: string; category: string }[] = [];
 
     if (talk.partnership_id) {
       const { data: topics } = await supabase
         .from("kizuna_topics")
-        .select("id, title")
+        .select(`
+          id,
+          title,
+          kizuna_items (
+            content,
+            type,
+            assignee,
+            status
+          )
+        `)
         .eq("partnership_id", talk.partnership_id)
         .eq("status", "active")
-        .order("updated_at", { ascending: false });
-      existingTopics = topics || [];
+        .is("deleted_at", null)
+        .order("updated_at", { ascending: false })
+        .limit(10);
+
+      // テーマごとに項目を整形（アクティブな項目のみ、最大5件）
+      existingTopics = (topics || []).map((topic: any) => {
+        const activeItems = (topic.kizuna_items || [])
+          .filter((item: any) => item.status === "active")
+          .slice(0, 5);
+
+        return {
+          id: topic.id,
+          title: topic.title,
+          items: activeItems.map((item: any) => ({
+            content: item.content,
+            type: item.type,
+            assignee: item.assignee,
+          })),
+          itemCount: activeItems.length,
+        };
+      });
 
       // 過去の絆ノート項目を取得（学習用）
       const { data: recentItems } = await supabase
