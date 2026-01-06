@@ -45,4 +45,3 @@ export default async function RootLayout({
     </html>
   );
 }
-// Build verified locally on 2026年 1月 6日 火曜日 15時26分51秒 CET
