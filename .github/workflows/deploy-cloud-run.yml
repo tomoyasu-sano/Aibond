@@ -1,5 +1,6 @@
 name: Deploy to Cloud Run
 
+# Automatic deployment triggered on push to master branch
 on:
   push:
     branches:
