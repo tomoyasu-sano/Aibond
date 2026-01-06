@@ -160,6 +160,12 @@ export async function generateBondNoteItems(
   existingTopics: Array<{
     id: string;
     title: string;
+    items: Array<{
+      content: string;
+      type: string;
+      assignee?: string;
+    }>;
+    itemCount: number;
   }>,
   recentItems?: Array<{
     topic_title: string;
