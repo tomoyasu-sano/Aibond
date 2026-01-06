@@ -125,7 +125,16 @@ async function generateSummaryAndSentiment(
     console.log("[Confirm] Generating integrated summary for", messagesWithNames.length, "messages");
 
     // 絆ノート用のコンテキストを取得（partnership_idがある場合）
-    let existingTopics: Array<{ id: string; title: string }> = [];
+    let existingTopics: Array<{
+      id: string;
+      title: string;
+      items: Array<{
+        content: string;
+        type: string;
+        assignee?: string;
+      }>;
+      itemCount: number;
+    }> = [];
     let recentItems: Array<{
       topic_title: string;
       type: string;
