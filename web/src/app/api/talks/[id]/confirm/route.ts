@@ -149,21 +149,48 @@ async function generateSummaryAndSentiment(
 
       const historyDeletedAt = partnership?.history_deleted_at;
 
-      // 既存の継続中のテーマを取得（history_deleted_at 以降に作成されたもののみ）
+      // 既存の継続中のテーマと項目を取得（history_deleted_at 以降に作成されたもののみ）
       let topicsQuery = supabase
         .from("kizuna_topics")
-        .select("id, title")
+        .select(`
+          id,
+          title,
+          kizuna_items (
+            content,
+            type,
+            assignee,
+            status
+          )
+        `)
         .eq("partnership_id", talk.partnership_id)
         .eq("status", "active")
         .is("deleted_at", null)
-        .order("updated_at", { ascending: false });
+        .order("updated_at", { ascending: false })
+        .limit(10);
 
       if (historyDeletedAt) {
         topicsQuery = topicsQuery.gt("created_at", historyDeletedAt);
       }
 
       const { data: topics } = await topicsQuery;
-      existingTopics = topics || [];
+
+      // テーマごとに項目を整形（アクティブな項目のみ、最大5件）
+      existingTopics = (topics || []).map((topic: any) => {
+        const activeItems = (topic.kizuna_items || [])
+          .filter((item: any) => item.status === "active")
+          .slice(0, 5);
+
+        return {
+          id: topic.id,
+          title: topic.title,
+          items: activeItems.map((item: any) => ({
+            content: item.content,
+            type: item.type,
+            assignee: item.assignee,
+          })),
+          itemCount: activeItems.length,
+        };
+      });
 
       // 過去の絆ノート項目を取得（学習用、history_deleted_at 以降に作成されたもののみ）
       let itemsQuery = supabase

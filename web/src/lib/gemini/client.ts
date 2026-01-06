@@ -184,9 +184,40 @@ export async function generateBondNoteItems(
     })
     .join("\n");
 
-  // 既存トピックのリスト
+  // 既存トピックのリスト（詳細版）
   const topicsListText = existingTopics.length > 0
-    ? existingTopics.map(t => `- ID: ${t.id}, タイトル: ${t.title}`).join("\n")
+    ? existingTopics.map((t, idx) => {
+        const assigneeMap: Record<string, string> = {
+          'self': '自分',
+          'partner': 'パートナー',
+          'both': '両者',
+        };
+
+        const typeMap: Record<string, string> = {
+          'promise': '約束',
+          'request': '要望',
+          'discussion': '検討事項',
+        };
+
+        const itemsList = t.items.length > 0
+          ? t.items
+              .map(item => {
+                const assigneeText = assigneeMap[item.assignee || ''] || item.assignee || '未設定';
+                const typeText = typeMap[item.type] || item.type;
+                return `  - ${item.content}（${typeText}、担当: ${assigneeText}）`;
+              })
+              .join("\n")
+          : "  （項目なし）";
+
+        const moreItemsText = t.itemCount > t.items.length
+          ? `\n  （他${t.itemCount - t.items.length}件）`
+          : '';
+
+        return `
+## テーマ${idx + 1}: ${t.title} (ID: ${t.id})
+登録済み項目（${t.itemCount}件）:
+${itemsList}${moreItemsText}`;
+      }).join("\n")
     : "なし（新規作成が必要です）";
 
   // 過去の項目からパターンを学習
@@ -325,6 +356,12 @@ export async function generateIntegratedSummary(
   existingTopics: Array<{
     id: string;
     title: string;
+    items: Array<{
+      content: string;
+      type: string;
+      assignee?: string;
+    }>;
+    itemCount: number;
   }> = [],
   recentItems?: Array<{
     topic_title: string;
@@ -359,9 +396,40 @@ export async function generateIntegratedSummary(
     })
     .join("\n");
 
-  // 既存トピックのリスト
+  // 既存トピックのリスト（詳細版）
   const topicsListText = existingTopics.length > 0
-    ? existingTopics.map(t => `- ID: ${t.id}, タイトル: ${t.title}`).join("\n")
+    ? existingTopics.map((t, idx) => {
+        const assigneeMap: Record<string, string> = {
+          'self': '自分',
+          'partner': 'パートナー',
+          'both': '両者',
+        };
+
+        const typeMap: Record<string, string> = {
+          'promise': '約束',
+          'request': '要望',
+          'discussion': '検討事項',
+        };
+
+        const itemsList = t.items.length > 0
+          ? t.items
+              .map(item => {
+                const assigneeText = assigneeMap[item.assignee || ''] || item.assignee || '未設定';
+                const typeText = typeMap[item.type] || item.type;
+                return `  - ${item.content}（${typeText}、担当: ${assigneeText}）`;
+              })
+              .join("\n")
+          : "  （項目なし）";
+
+        const moreItemsText = t.itemCount > t.items.length
+          ? `\n  （他${t.itemCount - t.items.length}件）`
+          : '';
+
+        return `
+## テーマ${idx + 1}: ${t.title} (ID: ${t.id})
+登録済み項目（${t.itemCount}件）:
+${itemsList}${moreItemsText}`;
+      }).join("\n")
     : "なし（新規作成が必要です）";
 
   // 既存の取説項目リスト
@@ -439,10 +507,44 @@ ${learningContext}
   - promise: 決定・約束、request: 要望、discussion: 検討事項。
   - assignee: 話者1が担当と言った→self、話者2→partner、二人で→both。
   - reviewDate: 具体日付があればそれ、なければ null。
-  - **テーマの判定ルール**:
-    1. 抽出した内容が既存テーマのいずれかと意味的に類似している場合 → そのテーマの topicId を使用
-    2. 類似する既存テーマがない場合 → topicId=null、topicTitle に適切な新規タイトルを設定
-    3. 類似判定は「同じカテゴリの話題か」「同じ文脈か」で判断
+
+  - **テーマの判定ルール（重要）**:
+
+    **ステップ1: 既存テーマとの類似性を厳密に判定**
+    新しく抽出した項目ごとに、以下の基準で既存テーマとの類似性を評価してください：
+
+    ✓ **同じテーマに追加すべきケース**:
+      - 項目の内容が既存テーマの範囲内（例: 「洗濯」→「家事分担」）
+      - 同じカテゴリーの話題（例: 「掃除機の購入」→「家事分担」）
+      - 既存項目と関連する話題（例: 「料理の献立」→「家事分担」に料理があれば）
+      → このケースでは topicId に既存テーマのIDを設定
+
+    ✗ **新規テーマを作成すべきケース**:
+      - 既存テーマのどれとも関連性が低い（例: 「旅行の計画」）
+      - 新しいカテゴリーの話題（例: 「ペットの世話」が初出）
+      - 既存テーマのタイトルでは表現できない内容
+      → このケースでは topicId=null、topicTitle に新規タイトルを設定
+
+    **ステップ2: 判定の具体例**
+
+    例1: 会話「洗濯は週2回で協力する」
+      既存テーマに「家事分担」があり、掃除・ゴミ出しの項目がある
+      → 判定: 洗濯は家事の一種で既存テーマに合致
+      → 結果: topicId="既存の家事分担のID"
+
+    例2: 会話「週末に温泉旅行に行きたい」
+      既存テーマに「家事分担」「育児」のみ
+      → 判定: 旅行は既存テーマのどれとも関連性が低い
+      → 結果: topicId=null, topicTitle="旅行・レジャー"
+
+    例3: 会話「夕食後の皿洗いを交代でやる」
+      既存テーマに「家事分担」があり、料理関連の項目がある
+      → 判定: 皿洗いは家事、食事関連で既存テーマに合致
+      → 結果: topicId="既存の家事分担のID"
+
+    **ステップ3: 曖昧なケースの対応**
+    どちらとも判断しにくい場合は、**既存テーマを優先**してください。
+    理由: ユーザーは後から統合・移動が可能ですが、重複テーマの削除は手間がかかるため。
 
 - manualItems: 会話から話者ごとの性格・好み・習慣などの個人情報を積極的に抽出する。
   - speakerTag: 1（話者1についての情報）または 2（話者2についての情報）
