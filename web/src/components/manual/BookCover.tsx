@@ -123,7 +123,10 @@ export function BookCover({
           `}
         >
           {/* Hero Image Area */}
-          <div className="relative h-[50%] sm:h-[52%] lg:h-[55%] m-2 sm:m-3 mb-0 rounded-t-lg overflow-hidden">
+          <div
+            className="relative h-[50%] sm:h-[52%] lg:h-[55%] m-2 sm:m-3 mb-0 rounded-t-lg overflow-hidden cursor-pointer"
+            onClick={handleImageClick}
+          >
             {/* Background/Image */}
             {currentCoverImage ? (
               <img
@@ -157,8 +160,7 @@ export function BookCover({
 
             {/* Upload Overlay */}
             <div
-              className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 sm:pb-6 cursor-pointer"
-              onClick={handleImageClick}
+              className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 sm:pb-6 pointer-events-none"
             >
               <div className="text-white text-xs sm:text-sm flex items-center gap-2">
                 <Camera size={16} />
