@@ -73,6 +73,19 @@ if ! gcloud iam service-accounts describe "$SERVICE_ACCOUNT" \
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$SERVICE_ACCOUNT" \
     --role="roles/aiplatform.user"
+
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/run.admin"
+
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/artifactregistry.writer"
+
+  gcloud iam service-accounts add-iam-policy-binding "$SERVICE_ACCOUNT" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/iam.serviceAccountUser" \
+    --project="$PROJECT_ID"
 else
   echo "✅ Service account already exists"
 fi

@@ -78,7 +78,7 @@ jobs:
             --timeout=300 \
             --concurrency=80 \
             --port=8080 \
-            --set-env-vars="NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1" \
+            --set-env-vars="NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1,ADMIN_EMAILS=anytimes.sano@gmail.com,NEXT_PUBLIC_APP_URL=https://aibond-web-694039525012.asia-northeast1.run.app" \
             --set-secrets="NEXT_PUBLIC_SUPABASE_URL=supabase-url:latest,NEXT_PUBLIC_SUPABASE_ANON_KEY=supabase-anon-key:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest,GEMINI_API_KEY=gemini-api-key:latest,STRIPE_SECRET_KEY=stripe-secret-key:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret:latest,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=stripe-publishable-key:latest,STRIPE_PRICE_STANDARD=stripe-price-standard:latest,STRIPE_PRICE_PREMIUM=stripe-price-premium:latest"
 
       - name: Get Service URL

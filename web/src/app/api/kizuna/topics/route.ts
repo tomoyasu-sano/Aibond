@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
     .select(
       `
       *,
-      items:kizuna_items(count),
       active_items:kizuna_items(id, review_date, status),
       latest_feedback:kizuna_items(
         kizuna_feedbacks(rating, created_at)
@@ -98,6 +97,11 @@ export async function GET(request: NextRequest) {
         item.status === "active" && item.review_date && item.review_date <= today
     ).length;
 
+    // アクティブな項目のみをカウント
+    const activeItemCount = (topic.active_items || []).filter(
+      (item: { status: string }) => item.status === "active"
+    ).length;
+
     return {
       id: topic.id,
       title: topic.title,
@@ -105,7 +109,7 @@ export async function GET(request: NextRequest) {
       created_at: topic.created_at,
       updated_at: topic.updated_at,
       resolved_at: topic.resolved_at,
-      item_count: topic.items?.[0]?.count || 0,
+      item_count: activeItemCount,
       latest_rating: latestRating,
       review_due_count: reviewDueCount,
     };
