@@ -43,11 +43,22 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
+      - name: Get build-time secrets
+        id: secrets
+        run: |
+          echo "SUPABASE_URL=$(gcloud secrets versions access latest --secret=supabase-url --project=${{ env.PROJECT_ID }})" >> $GITHUB_OUTPUT
+          echo "SUPABASE_ANON_KEY=$(gcloud secrets versions access latest --secret=supabase-anon-key --project=${{ env.PROJECT_ID }})" >> $GITHUB_OUTPUT
+
       - name: Build and Push Docker image
         working-directory: ./web
         run: |
           IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/web"
-          docker build -t "$IMAGE_NAME:latest" -t "$IMAGE_NAME:${{ github.sha }}" .
+          docker build \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ steps.secrets.outputs.SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ steps.secrets.outputs.SUPABASE_ANON_KEY }}" \
+            -t "$IMAGE_NAME:latest" \
+            -t "$IMAGE_NAME:${{ github.sha }}" \
+            .
           docker push "$IMAGE_NAME:latest"
           docker push "$IMAGE_NAME:${{ github.sha }}"
 
