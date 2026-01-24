@@ -105,8 +105,8 @@ export async function executeDiarization(
       features: {
         enableAutomaticPunctuation: true,
         diarizationConfig: {
-          min_speaker_count: 2, // 2人の会話を明示（精度向上）
-          max_speaker_count: 2,
+          minSpeakerCount: 2, // 2人の会話を明示（精度向上）
+          maxSpeakerCount: 2,
         },
       },
     };
@@ -114,7 +114,7 @@ export async function executeDiarization(
     console.log(`[Diarize] Starting BatchRecognize with chirp_3 model`);
 
     // BatchRecognizeリクエスト
-    const [operation] = await speechClient.batchRecognize({
+    const batchResult = await speechClient.batchRecognize({
       recognizer: recognizerPath,
       config: recognitionConfig,
       files: [
@@ -126,6 +126,7 @@ export async function executeDiarization(
         inlineResponseConfig: {},
       },
     });
+    const operation = batchResult[0];
 
     console.log(`[Diarize] Operation started, waiting for completion...`);
 
