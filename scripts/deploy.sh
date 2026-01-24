@@ -100,10 +100,10 @@ gcloud run deploy "$SERVICE_NAME" \
   --project="$PROJECT_ID" \
   --allow-unauthenticated \
   --service-account="$SERVICE_ACCOUNT" \
-  --min-instances=1 \
+  --min-instances=0 \
   --max-instances=10 \
-  --cpu=2 \
-  --memory=2Gi \
+  --cpu=1 \
+  --memory=512Mi \
   --timeout=300 \
   --concurrency=80 \
   --port=8080 \

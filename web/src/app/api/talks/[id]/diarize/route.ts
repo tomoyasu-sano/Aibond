@@ -93,18 +93,21 @@ export async function executeDiarization(
     const recognizerPath = `projects/${projectId}/locations/asia-northeast1/recognizers/_`;
 
     // RecognitionConfig
-    // Note: For chirp_3 model, diarization uses an empty config (auto-detected)
+    // Note: For chirp_3 model, diarization config explicitly specifies 2 speakers
     const recognitionConfig = {
       explicitDecodingConfig: {
         encoding: "WEBM_OPUS" as const,
-        sampleRateHertz: 48000,
+        sampleRateHertz: 16000, // リアルタイム文字起こしと統一（精度向上）
         audioChannelCount: 1,
       },
       languageCodes: [convertLanguageCode(sourceLanguage)],
       model: "chirp_3",
       features: {
         enableAutomaticPunctuation: true,
-        diarizationConfig: {}, // Empty config for chirp_3 - auto speaker detection
+        diarizationConfig: {
+          min_speaker_count: 2, // 2人の会話を明示（精度向上）
+          max_speaker_count: 2,
+        },
       },
     };
 
