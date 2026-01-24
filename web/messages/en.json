@@ -32,7 +32,7 @@
   },
   "auth": {
     "loginPageTitle": "Login",
-    "loginDescription": "Sign in to your account",
+    "loginDescription": "Sign in with your Google account",
     "loginButtonText": "Login",
     "loggingIn": "Logging in...",
     "invalidCredentials": "Invalid email or password",
@@ -42,7 +42,7 @@
     "noAccount": "Don't have an account?",
     "signupLink": "Sign up",
     "signupPageTitle": "Sign Up",
-    "signupDescription": "Create an account to get started",
+    "signupDescription": "Get started with your Google account",
     "passwordPlaceholder": "6+ characters",
     "confirmPasswordPlaceholder": "Re-enter password",
     "agreeToTerms": "Please agree to the terms of service",

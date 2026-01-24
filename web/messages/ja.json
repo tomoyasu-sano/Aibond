@@ -32,7 +32,7 @@
   },
   "auth": {
     "loginPageTitle": "ログイン",
-    "loginDescription": "アカウントにログインしてください",
+    "loginDescription": "Googleアカウントでログインしてください",
     "loginButtonText": "ログイン",
     "loggingIn": "ログイン中...",
     "invalidCredentials": "メールアドレスまたはパスワードが正しくありません",
@@ -42,7 +42,7 @@
     "noAccount": "アカウントをお持ちでない方は",
     "signupLink": "新規登録",
     "signupPageTitle": "新規登録",
-    "signupDescription": "アカウントを作成して始めましょう",
+    "signupDescription": "Googleアカウントで始めましょう",
     "passwordPlaceholder": "6文字以上",
     "confirmPasswordPlaceholder": "パスワードを再入力",
     "agreeToTerms": "利用規約に同意してください",

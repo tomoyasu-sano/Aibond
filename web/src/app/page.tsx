@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
@@ -44,7 +45,19 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
-export default async function LandingPage() {
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string; next?: string }>;
+}) {
+  const params = await searchParams;
+
+  // OAuth callback が / に来た場合、/auth/callback にリダイレクト
+  if (params.code) {
+    const next = params.next || "/dashboard";
+    redirect(`/auth/callback?code=${params.code}&next=${encodeURIComponent(next)}`);
+  }
+
   const t = await getTranslations("landingPage");
 
   const features = [

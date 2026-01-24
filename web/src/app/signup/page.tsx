@@ -1,28 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SignupPage() {
-  const router = useRouter();
   const t = useTranslations("auth");
   const tc = useTranslations("common");
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleGoogleSignup = async () => {
@@ -48,75 +39,6 @@ export default function SignupPage() {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!agreedToTerms) {
-      setError(t("agreeToTerms"));
-      return;
-    }
-
-    setError(null);
-    setLoading(true);
-
-    if (password !== confirmPassword) {
-      setError(t("passwordMismatch"));
-      setLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      setError(t("passwordTooShort"));
-      setLoading(false);
-      return;
-    }
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      if (error.message.includes("already registered")) {
-        setError(t("emailAlreadyRegistered"));
-      } else {
-        setError(error.message);
-      }
-      setLoading(false);
-      return;
-    }
-
-    setSuccess(true);
-    setLoading(false);
-  };
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <Link href="/" className="inline-block mb-4">
-              <span className="text-2xl font-bold text-primary">{tc("appName")}</span>
-            </Link>
-            <CardTitle className="text-2xl">{t("confirmationEmailSent")}</CardTitle>
-            <CardDescription>
-              {t("confirmationEmailDescription", { email })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Link href="/login">
-              <Button variant="outline">{t("goToLogin")}</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md">
@@ -130,14 +52,14 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* 利用規約への同意（共通） */}
+          {/* 利用規約への同意 */}
           <div className="mb-6 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-start space-x-2">
               <Checkbox
                 id="terms"
                 checked={agreedToTerms}
                 onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
-                disabled={loading || googleLoading}
+                disabled={googleLoading}
               />
               <label
                 htmlFor="terms"
@@ -165,66 +87,12 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">{tc("email")}</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">{tc("password")}</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder={t("passwordPlaceholder")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                minLength={6}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">{tc("confirmPassword")}</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder={t("confirmPasswordPlaceholder")}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={loading}
-                minLength={6}
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading || googleLoading || !agreedToTerms}>
-              {loading ? t("signingUp") : t("signupButtonText")}
-            </Button>
-          </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">{tc("or")}</span>
-            </div>
-          </div>
-
           <Button
             type="button"
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignup}
-            disabled={loading || googleLoading || !agreedToTerms}
+            disabled={googleLoading || !agreedToTerms}
           >
             {googleLoading ? (
               t("connecting")

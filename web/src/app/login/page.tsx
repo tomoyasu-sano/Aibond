@@ -1,50 +1,21 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
   const t = useTranslations("auth");
   const tc = useTranslations("common");
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError(error.message === "Invalid login credentials"
-        ? t("invalidCredentials")
-        : error.message);
-      setLoading(false);
-      return;
-    }
-
-    router.push(redirect);
-    router.refresh();
-  };
 
   const handleGoogleLogin = async () => {
     setError(null);
@@ -76,57 +47,18 @@ function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleLogin} className="space-y-4">
-          {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
-              {error}
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">{tc("email")}</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-            />
+        {error && (
+          <div className="p-3 mb-4 text-sm text-red-600 bg-red-50 rounded-md">
+            {error}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">{tc("password")}</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-              minLength={6}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading || googleLoading}>
-            {loading ? t("loggingIn") : t("loginButtonText")}
-          </Button>
-        </form>
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">{tc("or")}</span>
-          </div>
-        </div>
+        )}
 
         <Button
           type="button"
           variant="outline"
           className="w-full"
           onClick={handleGoogleLogin}
-          disabled={loading || googleLoading}
+          disabled={googleLoading}
         >
           {googleLoading ? (
             t("connecting")
@@ -175,10 +107,6 @@ export default function LoginPage() {
             <div className="animate-pulse space-y-4">
               <div className="h-8 bg-muted rounded w-32 mx-auto" />
               <div className="h-4 bg-muted rounded w-48 mx-auto" />
-              <div className="space-y-2">
-                <div className="h-10 bg-muted rounded" />
-                <div className="h-10 bg-muted rounded" />
-              </div>
               <div className="h-10 bg-muted rounded" />
             </div>
           </CardContent>
